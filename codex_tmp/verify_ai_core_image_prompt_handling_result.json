@@ -1,0 +1,121 @@
+{
+    "ok": true,
+    "results": [
+        {
+            "name": "turtle_water_river_forest",
+            "intent": {
+                "intent": "generate_image",
+                "tool_slug": "image_generate",
+                "confidence": 1,
+                "requires_confirmation": false,
+                "reason": "ai_core_hard_match_image_generation"
+            },
+            "ai_core_request_id": 403,
+            "audit_id": 808,
+            "job_id": "ad66c2b3-7d15-46d2-a0ef-ad0156e3aca1",
+            "comfyui_prompt_id": "c4e40e12-e6f2-405a-a8a2-0a2ec393ea15",
+            "original_prompt": "اعمل صورة سلحفاة تمشي على الماء بجانب النهر في الغابة",
+            "final_prompt_sent": "a turtle walking on the surface of water beside a river in a dense green forest, realistic, cinematic lighting, high detail",
+            "payload_keys": [
+                "prompt",
+                "negative_prompt",
+                "width",
+                "height",
+                "steps",
+                "wait"
+            ],
+            "missing_required_keywords": [],
+            "status": "completed",
+            "image_urls": [
+                "http://10.10.0.40:8080/generated/art_inpa_sdxl_00045_.png"
+            ]
+        },
+        {
+            "name": "supercar_racing_street",
+            "intent": {
+                "intent": "generate_image",
+                "tool_slug": "image_generate",
+                "confidence": 1,
+                "requires_confirmation": false,
+                "reason": "ai_core_hard_match_image_generation"
+            },
+            "ai_core_request_id": 410,
+            "audit_id": 823,
+            "job_id": "89f33b59-f5f8-4349-81b1-15752ae4b572",
+            "comfyui_prompt_id": "4c4804c7-d247-49c2-a568-a96ffd5adea4",
+            "original_prompt": "اعطني صورة سيارة سباق خارقة في شارع",
+            "final_prompt_sent": "a supercar racing car in a city street, realistic, cinematic lighting, high detail",
+            "payload_keys": [
+                "prompt",
+                "negative_prompt",
+                "width",
+                "height",
+                "steps",
+                "wait"
+            ],
+            "missing_required_keywords": [],
+            "status": "completed",
+            "image_urls": [
+                "http://10.10.0.40:8080/generated/art_inpa_sdxl_00046_.png"
+            ]
+        },
+        {
+            "name": "dancer_concert_stage_music",
+            "intent": {
+                "intent": "generate_image",
+                "tool_slug": "image_generate",
+                "confidence": 1,
+                "requires_confirmation": false,
+                "reason": "ai_core_hard_match_image_generation"
+            },
+            "ai_core_request_id": 417,
+            "audit_id": 838,
+            "job_id": "1b050552-68fd-4941-bc4c-3e5aa9bafaf9",
+            "comfyui_prompt_id": "f4021aef-cf93-4863-ab44-d28efa9da4d4",
+            "original_prompt": "صمم صورة راقصة ترقص في حفل غنائي",
+            "final_prompt_sent": "a dancer dancing at a live concert on a music stage, realistic, cinematic lighting, high detail",
+            "payload_keys": [
+                "prompt",
+                "negative_prompt",
+                "width",
+                "height",
+                "steps",
+                "wait"
+            ],
+            "missing_required_keywords": [],
+            "status": "completed",
+            "image_urls": [
+                "http://10.10.0.40:8080/generated/art_inpa_sdxl_00047_.png"
+            ]
+        },
+        {
+            "name": "three_children_public_park",
+            "intent": {
+                "intent": "generate_image",
+                "tool_slug": "image_generate",
+                "confidence": 1,
+                "requires_confirmation": false,
+                "reason": "ai_core_hard_match_image_generation"
+            },
+            "ai_core_request_id": 424,
+            "audit_id": 853,
+            "job_id": "9b3a5088-2865-458c-845e-21c98e7a3148",
+            "comfyui_prompt_id": "aa3ef742-537b-4f04-b44b-c6e832224452",
+            "original_prompt": "ولد صورة 3 أطفال يلعبون في حديقة عامة",
+            "final_prompt_sent": "three children playing in a public park garden, realistic, cinematic lighting, high detail",
+            "payload_keys": [
+                "prompt",
+                "negative_prompt",
+                "width",
+                "height",
+                "steps",
+                "wait"
+            ],
+            "missing_required_keywords": [],
+            "status": "completed",
+            "image_urls": [
+                "http://10.10.0.40:8080/generated/art_inpa_sdxl_00048_.png"
+            ]
+        }
+    ]
+}

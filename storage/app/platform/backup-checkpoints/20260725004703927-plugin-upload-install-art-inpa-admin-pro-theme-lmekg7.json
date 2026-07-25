@@ -1,0 +1,12 @@
+{
+    "operation_type": "plugin.upload.install",
+    "target_type": "plugin",
+    "target_slug": "art-inpa-admin-pro-theme",
+    "checkpoint_type": "step-checkpoint",
+    "metadata": {
+        "step": "plugin_manager_install_completed",
+        "checkpoint_reason": "Automatic checkpoint after successful step.",
+        "status": "installed"
+    },
+    "created_at": "2026-07-25T00:47:03+00:00"
+}

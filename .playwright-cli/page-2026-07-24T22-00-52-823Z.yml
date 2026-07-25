@@ -1,0 +1,153 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "Open menu" [ref=e6] [cursor=pointer]:
+        - /url: "#art-header-offcanvas"
+      - link "Art INPA home" [ref=e9] [cursor=pointer]:
+        - /url: http://localhost:8088
+        - img "\"Art INPA\"" [ref=e10]
+      - generic [ref=e11]:
+        - navigation "Primary navigation" [ref=e12]:
+          - link "الرئيسية" [ref=e13] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/home
+          - link "الأخبار" [ref=e15] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/news
+          - link "من نحن" [ref=e16] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/about
+          - link "تواصل معنا" [ref=e17] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/contact
+        - link "Account" [ref=e19] [cursor=pointer]:
+          - /url: /account
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]: تواصل معنا
+        - heading "نرحب بتواصلكم مع الشبكة الدولية للفن التشكيلي" [level=1] [ref=e27]
+        - paragraph [ref=e28]: يسعدنا استقبال رسائلكم، مقترحاتكم، طلبات التعاون، الأخبار الفنية، والاستفسارات المتعلقة بالمعارض والمبادرات الثقافية.
+      - generic [ref=e29]:
+        - heading "قنوات التواصل" [level=2] [ref=e30]
+        - generic [ref=e31]:
+          - link "البريد الإلكتروني info@art-inpa.com" [ref=e32] [cursor=pointer]:
+            - /url: mailto:info@art-inpa.com
+            - generic [ref=e33]: البريد الإلكتروني
+            - strong [ref=e34]: info@art-inpa.com
+          - link "الموقع الرسمي art-inpa.com" [ref=e35] [cursor=pointer]:
+            - /url: https://art-inpa.com
+            - generic [ref=e36]: الموقع الرسمي
+            - strong [ref=e37]: art-inpa.com
+          - generic [ref=e38]:
+            - generic [ref=e39]: النطاق الثقافي
+            - strong [ref=e40]: شبكة فنية عربية ودولية
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - generic [ref=e43]: أرسل رسالة
+        - heading "شاركنا طلبك أو فكرتك" [level=2] [ref=e44]
+        - paragraph [ref=e45]: املأ البيانات التالية، أو استخدم زر البريد الإلكتروني للتواصل المباشر مع فريق الشبكة.
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]: الاسم الكامل
+            - textbox "الاسم الكامل" [ref=e49]:
+              - /placeholder: اكتب اسمك هنا
+          - generic [ref=e50]:
+            - generic [ref=e51]: البريد الإلكتروني
+            - textbox "البريد الإلكتروني" [ref=e52]:
+              - /placeholder: name@example.com
+          - generic [ref=e53]:
+            - generic [ref=e54]: نوع الرسالة
+            - combobox "نوع الرسالة" [ref=e55]:
+              - option "استفسار عام" [selected]
+              - option "تعاون ثقافي"
+              - option "إرسال خبر أو فعالية"
+              - option "اقتراح أو ملاحظة"
+          - generic [ref=e56]:
+            - generic [ref=e57]: الرسالة
+            - textbox "الرسالة" [ref=e58]:
+              - /placeholder: اكتب رسالتك بالتفصيل
+          - button "إرسال الرسالة" [ref=e59] [cursor=pointer]
+      - complementary [ref=e60]:
+        - generic [ref=e61]: معلومات مهمة
+        - heading "كيف يمكننا مساعدتك؟" [level=2] [ref=e62]
+        - list [ref=e63]:
+          - listitem [ref=e64]: نشر الأخبار والفعاليات الفنية والثقافية.
+          - listitem [ref=e65]: التنسيق للمقابلات والتغطيات الإعلامية.
+          - listitem [ref=e66]: طلبات التعاون مع الفنانين والمؤسسات الثقافية.
+          - listitem [ref=e67]: الملاحظات الخاصة بالموقع أو المحتوى.
+        - generic [ref=e68]: عادة يتم مراجعة الرسائل والرد عليها حسب الأولوية وطبيعة الطلب.
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]: "01"
+        - heading "الأخبار والفعاليات" [level=3] [ref=e72]
+        - paragraph [ref=e73]: أرسل لنا أخبار المعارض والورش والمبادرات الفنية لنراجع إمكانية نشرها.
+      - generic [ref=e74]:
+        - generic [ref=e75]: "02"
+        - heading "التعاون الثقافي" [level=3] [ref=e76]
+        - paragraph [ref=e77]: نرحب بالشراكات التي تخدم الفنانين وتعزز حضور الفن التشكيلي.
+      - generic [ref=e78]:
+        - generic [ref=e79]: "03"
+        - heading "الدعم والملاحظات" [level=3] [ref=e80]
+        - paragraph [ref=e81]: شاركنا أي ملاحظة لتحسين تجربة الموقع أو وضوح المحتوى.
+    - generic [ref=e82]:
+      - generic [ref=e83]:
+        - generic [ref=e84]: تابعنا رقمياً
+        - heading "نحن قريبون من الفنانين والمهتمين أينما كانوا" [level=2] [ref=e85]
+        - paragraph [ref=e86]: يمكنك التواصل معنا عبر البريد أو متابعة تحديثات الشبكة من خلال الموقع الرسمي ومنصات التواصل.
+      - link "تواصل عبر البريد الإلكتروني" [ref=e87] [cursor=pointer]:
+        - /url: mailto:info@art-inpa.com
+  - contentinfo [ref=e89]:
+    - generic [ref=e90]:
+      - generic [ref=e91]:
+        - link "Art INPA home" [ref=e92] [cursor=pointer]:
+          - /url: http://localhost:8088
+          - img "\"Art INPA\"" [ref=e93]
+        - paragraph [ref=e94]: Art INPA shares art news, cultural updates, exhibitions, and creative stories from the international plastic arts community.
+      - generic [ref=e95]:
+        - heading "Quick Links" [level=3] [ref=e96]
+        - navigation "Footer menu 1" [ref=e97]:
+          - link "Home" [ref=e98] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/home
+          - link "News" [ref=e99] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/news
+          - link "About Us" [ref=e100] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/about
+          - link "Contact" [ref=e101] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/contact
+      - generic [ref=e102]:
+        - heading "Categoris" [level=3] [ref=e103]
+        - navigation "Footer menu 2" [ref=e104]:
+          - link "Artistic Initiatives" [ref=e105] [cursor=pointer]:
+            - /url: http://localhost:8088/blog/category/artistic-initiatives
+          - link "Good News" [ref=e106] [cursor=pointer]:
+            - /url: http://localhost:8088/blog/category/good-news
+          - link "About Art" [ref=e107] [cursor=pointer]:
+            - /url: http://localhost:8088/blog/category/about-art
+          - link "Art Inpa" [ref=e108] [cursor=pointer]:
+            - /url: http://localhost:8088/blog/category/art-inpa2
+          - link "Art World" [ref=e109] [cursor=pointer]:
+            - /url: http://localhost:8088/blog/category/art-world
+      - generic [ref=e110]:
+        - heading "Resources" [level=3] [ref=e111]
+        - navigation "Footer menu 3" [ref=e112]:
+          - link "Privacy Policy" [ref=e113] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/privacy-policy
+          - link "Terms & Conditions" [ref=e114] [cursor=pointer]:
+            - /url: http://localhost:8088/pages/terms-of-service
+          - link "My Account" [ref=e115] [cursor=pointer]:
+            - /url: http://localhost:8088/account
+    - generic [ref=e116]:
+      - generic "Social links" [ref=e117]:
+        - link "LinkedIn" [ref=e118] [cursor=pointer]:
+          - /url: "#ln"
+          - text: in
+        - link "Facebook" [ref=e119] [cursor=pointer]:
+          - /url: "#fb"
+          - text: f
+        - link "X" [ref=e120] [cursor=pointer]:
+          - /url: "#x"
+          - text: x
+        - link "Instagram" [ref=e121] [cursor=pointer]:
+          - /url: "#in"
+          - text: ig
+        - link "YouTube" [ref=e122] [cursor=pointer]:
+          - /url: "#yt"
+          - text: yt
+      - paragraph [ref=e123]: Art INPA © 2026, All rights reserved.

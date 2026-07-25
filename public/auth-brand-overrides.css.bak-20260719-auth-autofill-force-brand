@@ -1,0 +1,9 @@
+.ainpa-auth-field input:-webkit-autofill,
+.ainpa-auth-field input:-webkit-autofill:hover,
+.ainpa-auth-field input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #fff4f2 inset;
+    -webkit-text-fill-color: #0f172a;
+    background-color: #fff4f2;
+    caret-color: #0f172a;
+    color: #0f172a;
+}

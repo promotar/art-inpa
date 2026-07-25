@@ -1,0 +1,15 @@
+.git
+.idea
+.vscode
+.env
+.env.*
+!.env.example
+backups
+docker/secrets
+node_modules
+vendor
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+

@@ -1,0 +1,32 @@
+- main [ref=e2]:
+  - region "\"Art INPA\" authentication" [ref=e3]:
+    - link "\"Art INPA\"" [ref=e4] [cursor=pointer]:
+      - /url: http://localhost:8088
+      - img "\"Art INPA\"" [ref=e5]
+    - generic [ref=e6]:
+      - paragraph [ref=e7]: Welcome back
+      - heading "Sign In" [level=1] [ref=e8]
+      - paragraph [ref=e9]: Access your INPA account and continue managing your artistic profile.
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - generic [ref=e12]: Email Address
+        - textbox "Email Address" [active] [ref=e13]:
+          - /placeholder: Enter your email address
+      - generic [ref=e14]:
+        - generic [ref=e15]: Password
+        - generic [ref=e16]:
+          - textbox "Password Show password" [ref=e17]:
+            - /placeholder: Enter your password
+          - button "Show password" [ref=e18] [cursor=pointer]: Show
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - checkbox "Remember me" [ref=e21]
+          - generic [ref=e22]: Remember me
+        - link "Forgot password?" [ref=e23] [cursor=pointer]:
+          - /url: http://localhost:8088/forgot-password
+      - button "Sign In" [ref=e24] [cursor=pointer]
+      - generic [ref=e25]: or
+      - paragraph [ref=e27]:
+        - text: Don’t have an account?
+        - link "Create Account" [ref=e28] [cursor=pointer]:
+          - /url: http://localhost:8088/register

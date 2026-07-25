@@ -1,0 +1,337 @@
+:root {
+    --ai-assistant-accent: #7c3aed;
+    --ai-assistant-accent-strong: #5b21b6;
+    --ai-assistant-border: #d7dde8;
+    --ai-assistant-text: #111827;
+    --ai-assistant-muted: #6b7280;
+    --ai-assistant-surface: #ffffff;
+}
+
+.ai-assistant-widget,
+.ai-assistant-widget * {
+    box-sizing: border-box;
+}
+
+.ai-assistant-widget {
+    position: fixed;
+    right: 28px;
+    bottom: 22px;
+    z-index: 2147482000;
+    color: var(--ai-assistant-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ai-assistant-launcher {
+    display: inline-flex;
+    min-height: 52px;
+    align-items: center;
+    gap: 10px;
+    border: 3px solid var(--ai-assistant-accent);
+    border-radius: 999px;
+    background: #fff;
+    color: #111827;
+    padding: 10px 20px;
+    box-shadow: 0 12px 30px rgba(17, 24, 39, 0.16);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+}
+
+.ai-assistant-launcher:hover {
+    border-color: var(--ai-assistant-accent-strong);
+    transform: translateY(-1px);
+}
+
+.ai-assistant-launcher-icon {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+}
+
+.ai-assistant-launcher-icon svg,
+.ai-assistant-icon-button svg,
+.ai-assistant-form button svg {
+    width: 100%;
+    height: 100%;
+}
+
+.ai-assistant-panel {
+    position: absolute;
+    right: 0;
+    bottom: 72px;
+    display: flex;
+    width: min(520px, calc(100vw - 32px));
+    height: min(700px, calc(100vh - 112px));
+    min-height: 520px;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--ai-assistant-border);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 18% 16%, rgba(124, 58, 237, 0.10), transparent 28%),
+        radial-gradient(circle at 90% 90%, rgba(124, 58, 237, 0.12), transparent 34%),
+        var(--ai-assistant-surface);
+    box-shadow: 0 18px 40px rgba(17, 24, 39, 0.24);
+}
+
+.ai-assistant-panel[hidden] {
+    display: none !important;
+}
+
+.ai-assistant-header,
+.ai-assistant-full-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 22px 10px;
+}
+
+.ai-assistant-header h2,
+.ai-assistant-full-header h1 {
+    margin: 0;
+    color: #111827;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.ai-assistant-header p,
+.ai-assistant-full-header p {
+    margin: 4px 0 0;
+    color: var(--ai-assistant-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ai-assistant-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-assistant-icon-button {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #4b5563;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.ai-assistant-icon-button:hover {
+    background: rgba(17, 24, 39, 0.07);
+    color: #111827;
+}
+
+.ai-assistant-body {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    padding: 18px 16px 12px;
+}
+
+.ai-assistant-intro {
+    padding: 8px 0 20px;
+}
+
+.ai-assistant-intro p {
+    margin: 0 0 8px;
+    font-size: 24px;
+    line-height: 1.25;
+}
+
+.ai-assistant-intro strong {
+    display: block;
+    max-width: 420px;
+    color: #111827;
+    font-size: 32px;
+    font-weight: 950;
+    line-height: 1.18;
+}
+
+.ai-assistant-intro strong::first-letter {
+    color: var(--ai-assistant-accent);
+}
+
+.ai-assistant-messages {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.ai-assistant-message {
+    max-width: 88%;
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.ai-assistant-message-user {
+    align-self: flex-end;
+    background: #111827;
+    color: #fff;
+}
+
+.ai-assistant-message-assistant {
+    align-self: flex-start;
+    border: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.9);
+    color: #111827;
+}
+
+.ai-assistant-message-error {
+    align-self: flex-start;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.ai-assistant-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 10px;
+    padding: 10px 10px 4px;
+}
+
+.ai-assistant-form input {
+    width: 100%;
+    min-height: 52px;
+    border: 2px solid #2563eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    font: inherit;
+    font-size: 15px;
+    padding: 0 14px;
+    outline: none;
+}
+
+.ai-assistant-form input:focus {
+    border-color: var(--ai-assistant-accent);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18);
+}
+
+.ai-assistant-form button {
+    display: grid;
+    min-height: 52px;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: #8b8d92;
+    color: #fff;
+    cursor: pointer;
+}
+
+.ai-assistant-form button:hover {
+    background: var(--ai-assistant-accent);
+}
+
+.ai-assistant-form button[disabled] {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.ai-assistant-disclaimer {
+    margin: 0;
+    padding: 0 14px 10px;
+    color: #111827;
+    font-size: 11px;
+    text-align: center;
+}
+
+.ai-assistant-page-body {
+    min-height: 100vh;
+    margin: 0;
+    background: #f4f6fb;
+    color: #111827;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ai-assistant-full-page {
+    display: grid;
+    min-height: 100vh;
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.ai-assistant-full-header {
+    border-bottom: 1px solid #e5e7eb;
+    background: #fff;
+    padding: 24px clamp(20px, 5vw, 72px);
+}
+
+.ai-assistant-full-header a {
+    color: var(--ai-assistant-accent);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.ai-assistant-full-shell {
+    display: flex;
+    min-height: 0;
+    width: min(960px, calc(100vw - 32px));
+    margin: 24px auto;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--ai-assistant-border);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 12% 8%, rgba(124, 58, 237, 0.10), transparent 24%),
+        #fff;
+    box-shadow: 0 14px 36px rgba(17, 24, 39, 0.12);
+}
+
+.ai-assistant-full-shell .ai-assistant-intro {
+    padding: 28px 32px 12px;
+}
+
+.ai-assistant-full-shell .ai-assistant-messages {
+    padding: 0 32px 20px;
+}
+
+.ai-assistant-full-form {
+    border-top: 1px solid #e5e7eb;
+    padding: 16px;
+}
+
+@media (max-width: 640px) {
+    .ai-assistant-widget {
+        right: 14px;
+        bottom: 14px;
+    }
+
+    .ai-assistant-launcher-label {
+        display: none;
+    }
+
+    .ai-assistant-launcher {
+        width: 58px;
+        min-height: 58px;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .ai-assistant-panel {
+        right: -2px;
+        bottom: 74px;
+        width: calc(100vw - 24px);
+        height: calc(100vh - 104px);
+        min-height: 0;
+    }
+
+    .ai-assistant-intro strong {
+        font-size: 25px;
+    }
+}

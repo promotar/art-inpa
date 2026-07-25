@@ -1,0 +1,62 @@
+{
+  "name": "Professional Programmer",
+  "slug": "professional-programmer",
+  "version": "1.0.0",
+  "description": "Admin-only programming intelligence plugin that learns platform code context, monitors Laravel error logs, opens an admin coding assistant chat, ranks issue severity, and records repair approval requests before any code changes.",
+  "author": "Art INPA",
+  "provider": "Modules\\ProfessionalProgrammer\\ProfessionalProgrammerServiceProvider",
+  "provider_file": "src/ProfessionalProgrammerServiceProvider.php",
+  "settings": {
+    "label": "Professional Programmer",
+    "route": "admin.plugins.professional-programmer.index"
+  },
+  "routes": {
+    "admin": {
+      "file": "routes/admin.php",
+      "prefix": "admin/plugins/professional-programmer",
+      "name": "admin.plugins.professional-programmer.",
+      "middleware": ["web", "auth", "staff"]
+    }
+  },
+  "permissions": [
+    "professional-programmer.manage",
+    "professional-programmer.chat",
+    "professional-programmer.approve-fixes"
+  ],
+  "menus": [
+    {
+      "key": "professional-programmer.admin",
+      "name": "Professional Programmer",
+      "location": "admin",
+      "description": "Developer AI monitoring, learning, incident triage, and repair approval.",
+      "source": "plugin",
+      "sort_order": 120,
+      "items": [
+        {
+          "title": "Professional Programmer",
+          "label": "Professional Programmer",
+          "type": "route",
+          "route": "admin.plugins.professional-programmer.index",
+          "icon": "DEV",
+          "permission": "professional-programmer.manage",
+          "sort_order": 120
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "professional-programmer.learn.codebase": {
+      "description": "Scan platform code and data metadata into a database-backed learning index."
+    },
+    "professional-programmer.monitor.logs": {
+      "description": "Read configured Laravel logs and register deduplicated incidents with severity."
+    },
+    "professional-programmer.chat.admin": {
+      "description": "Open an admin coding assistant conversation using the internal AI Gateway coding endpoint."
+    },
+    "professional-programmer.repair.approval": {
+      "description": "Record admin approval to begin a code repair workflow for a monitored incident."
+    }
+  },
+  "docs": "docs/plugin.md"
+}
