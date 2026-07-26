@@ -94,6 +94,35 @@ if [ ! -f vendor/autoload.php ]; then
     composer install --no-interaction --prefer-dist
 fi
 
+# Build Vite assets if manifest.json doesn't exist
+if [ ! -f public/build/manifest.json ]; then
+    echo ">>> Building Vite assets (missing manifest.json)..."
+    # Install Node.js globally if needed - the PHP container doesn't have it by default
+    command -v npm >/dev/null 2>&1 || {
+        echo "    Installing Node.js v22..."
+        apt-get update >/dev/null
+        apt-get install -y --no-install-recommends curl >/dev/null
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1
+        apt-get install -y --no-install-recommends nodejs >/dev/null
+        apt-get clean >/dev/null
+        rm -rf /var/lib/apt/lists/* >/dev/null
+        echo "    Node.js installed"
+    }
+    echo "    Running npm install..."
+    npm install >/dev/null 2>&1 || {
+        echo "    Warning: npm install had issues, continuing..."
+    }
+    echo "    Running npm run build..."
+    npm run build >/dev/null 2>&1 || {
+        echo "    Warning: npm run build had issues"
+    }
+    if [ -f public/build/manifest.json ]; then
+        echo "    ✓ Vite assets built successfully"
+    else
+        echo "    ! Warning: manifest.json not found after build"
+    fi
+fi
+
 php artisan package:discover --ansi >/dev/null
 
 exec "$@"

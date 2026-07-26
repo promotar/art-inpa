@@ -7,6 +7,13 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Quick Start
+
+**For setup and deployment instructions, see:**
+- 📖 [SETUP_GUIDE.md](SETUP_GUIDE.md) - Complete setup for development and production
+- 🐳 [LOCAL_DOCKER.md](LOCAL_DOCKER.md) - Local Docker development setup
+- 🚀 [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment steps
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
