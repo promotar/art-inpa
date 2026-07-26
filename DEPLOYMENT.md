@@ -17,7 +17,7 @@ The repository enforces this contract in both supported deployment paths:
   dependencies with `npm ci`, runs `npm run build`, and fails when the manifest
   is absent.
 - Docker Compose builds the `vite-assets` stage in `docker/php/Dockerfile` and
-  stores its verified output in the PHP image. The runtime entrypoint copies
+  stores its verified output in the Apache/PHP image. The runtime entrypoint copies
   that output into an empty source bind mount.
 
 Frontend compilation never happens during container startup.
@@ -46,7 +46,7 @@ Nixpacks Node version.
 For this release, set:
 
 ```text
-PLATFORM_VERSION=2.5.1
+PLATFORM_VERSION=2.5.2
 ```
 
 Do not add `public/build` to Git and do not set a Coolify build command that
@@ -61,8 +61,10 @@ docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
 ```
 
-The `app`, `queue`, and `scheduler` services use the same PHP image. Build it
-once and start all services from that image.
+Compose contains one `app` service. Apache and PHP run in that container and
+serve Laravel directly on container port `80`. MySQL remains an external shared
+service on `vps-internal`. Set `QUEUE_CONNECTION=sync`; no separate queue,
+scheduler, Vite, or Nginx service is part of this project.
 
 ## Verification
 

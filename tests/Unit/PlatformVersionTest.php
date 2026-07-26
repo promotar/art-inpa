@@ -18,7 +18,7 @@ class PlatformVersionTest extends TestCase
         preg_match('/^PLATFORM_VERSION=(\d+\.\d+\.\d+)$/m', $environment, $matches);
         $declaredVersion = $matches[1];
 
-        $this->assertSame('2.5.1', $declaredVersion);
+        $this->assertSame('2.5.2', $declaredVersion);
         $this->assertSame($declaredVersion, config('platform.version'));
         $this->assertStringContainsString(
             "env('PLATFORM_VERSION', '{$declaredVersion}')",

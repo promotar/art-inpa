@@ -28,7 +28,7 @@
   Every completed Core change increments the semantic version before
   deployment: patch for compatible fixes, minor for backward-compatible
   capability, and major for breaking plugin/API contracts.
-- Current Core release: `2.5.1`. This public-root and deployment correction is
+- Current Core release: `2.5.2`. This single-container runtime correction is
   backward-compatible with plugins targeting `>=2.5.0 <3.0.0`.
 
 ## ملاحظة تشغيلية محدثة - Page Builder / Theme Builder
@@ -1592,12 +1592,17 @@ Current behavior:
 ## Local Docker Runtime - 2026-07-22
 
 - Operational root: `D:\VPS\art-inpa`.
-- Application: `http://localhost:8088`; Vite: `http://localhost:5173`.
-- Standard Compose runs Nginx, PHP-FPM, queue, scheduler, and Vite.
+- Application: `http://localhost:8088`.
+- Standard Compose runs exactly one `art-inpa-app` service. Apache and PHP 8.2
+  serve Laravel together in that container.
+- Nginx, PHP-FPM, queue, scheduler, and Vite are not separate project services.
+- Queue execution is synchronous so jobs cannot remain stranded without a
+  worker. No scheduled application tasks currently require a scheduler process.
 - The existing `vps-mysql` container is reused through `vps-internal`; no database container is defined here.
 - Local database source of truth: `art_inpa_local_dev`.
 - `.env.live.backup` is the untouched live environment backup; `.env` is local-only.
-- Vite must publish its browser-facing dev origin as `http://localhost:5173`; `public/hot` must not point to `http://0.0.0.0:5173`, because Laravel will then emit unreachable CSS/JS URLs and auth pages render without their design system.
+- Production assets are built in the Docker image. `npm run dev` is an optional
+  host-side development command, never a required runtime service.
 
 ## Platform 2.0 Plugin Runtime - 2026-07-23
 

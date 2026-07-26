@@ -2,6 +2,39 @@
 
 This file records completed project changes, reasons, impact, verification, and notes.
 
+## 2026-07-27 - Single-container Laravel runtime and Core 2.5.2
+
+- Replaced the five-service local runtime (`app`, `web`, `queue`, `scheduler`,
+  and `vite`) with one `art-inpa-app` service.
+- Changed the final runtime image from PHP-FPM to PHP 8.2 with Apache and
+  enabled Laravel's required rewrite module.
+- Declared Apache's global `ServerName` to keep startup and operations logs free
+  from FQDN warnings.
+- Added one Apache virtual host whose only document root is
+  `/var/www/html/public`.
+- Removed obsolete project-local Nginx and PHP-FPM configuration files.
+- Kept MySQL outside this project on the existing `vps-internal` network.
+- Changed the queue contract from `database` to `sync`, preventing jobs from
+  waiting indefinitely after removal of the queue worker.
+- Confirmed no scheduled application tasks exist before removing the scheduler
+  service.
+- Preserved the image-build Vite stage and immutable manifest restoration; no
+  Node/Vite process runs in the final container.
+- Raised the backward-compatible Core release to `2.5.2`.
+- Added a regression contract requiring both Compose definitions to contain
+  only the Laravel `app` service.
+- Rebuilt and recreated the local stack with orphan removal. Runtime inspection
+  showed only healthy `art-inpa-app`, running `apache2-foreground` and publishing
+  `127.0.0.1:8088` to container port `80`.
+- Runtime verification returned platform `2.5.2`, queue `sync`, public root
+  `/var/www/html/public`, an existing Vite manifest, and a successful MySQL
+  `SELECT 1`.
+- `/login` and both emitted Vite CSS/JS assets returned HTTP `200`.
+- Focused deployment, version, public-path, and plugin-asset tests passed:
+  10 tests / 94 assertions.
+- Apache logs contained no FQDN warning, fatal PHP error, Vite manifest error,
+  or application error after the final rebuild.
+
 ## 2026-07-26 - Core environment version 2.5.1
 
 - Raised the backward-compatible Core release from `2.5.0` to `2.5.1`.

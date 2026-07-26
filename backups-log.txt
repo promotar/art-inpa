@@ -1,5 +1,26 @@
 # Backups Log
 
+## 2026-07-27 - Single-container runtime recovery point
+
+### Backup
+
+`backups\single-container-runtime-20260727-015053`
+
+### Scope
+
+- Pre-change Compose definitions, PHP-FPM image/runtime files, Nginx config,
+  environment example, platform version contract, deployment tests, and project
+  memory files.
+- `SHA256SUMS.csv` contains SHA-256 hashes for all 19 copied files.
+- The secret-bearing local `.env` was intentionally not copied.
+
+### Rollback
+
+- Verify `SHA256SUMS.csv`, then restore each file to its matching relative path.
+- Restore local `PLATFORM_VERSION` and `QUEUE_CONNECTION` manually if the code
+  rollback requires the old multi-service runtime.
+- No database mutation or production access was performed.
+
 ## 2026-07-26 - Platform version 2.5.1 recovery point
 
 ### Backup

@@ -9,8 +9,9 @@ docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate --force
 ```
 
-The local `vite` service runs `npm run dev`. Its `public/hot` file is local-only
-and excluded from Git and Docker image contexts.
+Compose starts one Apache/PHP Laravel service. It does not start Vite, Nginx,
+queue, or scheduler containers. Run `npm run dev` from the workspace only while
+actively developing frontend files; its `public/hot` file remains local-only.
 
 ## Production Assets
 
@@ -25,7 +26,7 @@ server is active. The manifest is generated during deployment:
 The runtime image intentionally does not contain npm and does not download
 Node.js. A missing build artifact stops startup with an actionable error.
 
-Laravel, Nginx, plugin assets, and Vite all use the repository `public`
+Laravel, Apache, plugin assets, and Vite all use the repository `public`
 directory. There is no external or sibling public directory.
 
 ## Manual Source Verification

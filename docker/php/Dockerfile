@@ -12,7 +12,7 @@ RUN rm -f public/hot \
     && npm run build \
     && test -s public/build/manifest.json
 
-FROM php:8.2-fpm-bookworm
+FROM php:8.2-apache-bookworm
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -42,19 +42,20 @@ RUN apt-get update \
         pdo_mysql \
         sockets \
         zip \
+    && a2enmod rewrite headers expires \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-art-inpa.ini
-COPY docker/php/www.conf /usr/local/etc/php-fpm.d/99-art-inpa.conf
+COPY docker/apache-servername.conf /etc/apache2/conf-available/art-inpa-servername.conf
+COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/php/entrypoint.sh /usr/local/bin/art-inpa-entrypoint
-COPY docker/php/php-fpm-wrapper.sh /usr/local/sbin/php-fpm-wrapper
 COPY --from=vite-assets /build/public/build /opt/art-inpa/public/build
 
-RUN mv /usr/local/sbin/php-fpm /usr/local/sbin/php-fpm-real \
-    && mv /usr/local/sbin/php-fpm-wrapper /usr/local/sbin/php-fpm \
-    && chmod +x /usr/local/bin/art-inpa-entrypoint /usr/local/sbin/php-fpm
+RUN a2enconf art-inpa-servername \
+    && chmod +x /usr/local/bin/art-inpa-entrypoint
 
+WORKDIR /var/www/html
 ENTRYPOINT ["art-inpa-entrypoint"]
-CMD ["php-fpm", "-F"]
+CMD ["apache2-foreground"]

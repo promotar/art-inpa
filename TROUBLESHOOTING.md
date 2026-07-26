@@ -32,12 +32,12 @@ test -s public/build/manifest.json
 
 ```bash
 docker compose build --no-cache app
-docker compose up -d app web
+docker compose up -d app
 docker compose exec app test -s public/build/manifest.json
-docker compose logs app web
+docker compose logs app
 ```
 
-The PHP image stores its build artifact at
+The single Apache/PHP image stores its build artifact at
 `/opt/art-inpa/public/build/manifest.json`. When a source bind mount hides the
 image filesystem, the entrypoint restores that artifact into `public/build`.
 

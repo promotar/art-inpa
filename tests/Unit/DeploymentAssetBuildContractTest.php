@@ -22,12 +22,17 @@ class DeploymentAssetBuildContractTest extends TestCase
         $dockerfile = $this->projectFile('docker/php/Dockerfile');
 
         self::assertStringContainsString('FROM node:22-bookworm-slim AS vite-assets', $dockerfile);
+        self::assertStringContainsString('FROM php:8.2-apache-bookworm', $dockerfile);
         self::assertStringContainsString('npm ci --include=dev', $dockerfile);
         self::assertStringContainsString('test -s public/build/manifest.json', $dockerfile);
+        self::assertStringContainsString('a2enmod rewrite headers expires', $dockerfile);
+        self::assertStringContainsString('a2enconf art-inpa-servername', $dockerfile);
+        self::assertStringContainsString('CMD ["apache2-foreground"]', $dockerfile);
         self::assertStringContainsString(
             'COPY --from=vite-assets /build/public/build /opt/art-inpa/public/build',
             $dockerfile,
         );
+        self::assertStringNotContainsString('php-fpm', $dockerfile);
     }
 
     public function test_runtime_restores_only_the_prebuilt_artifact_and_fails_when_it_is_missing(): void
@@ -56,7 +61,7 @@ class DeploymentAssetBuildContractTest extends TestCase
             'app/Providers/AppServiceProvider.php',
             'docker-compose.yml',
             'docker-compose.prod.yml',
-            'docker/nginx/default.conf',
+            'docker/apache-vhost.conf',
             'nginx.template.conf',
         ] as $path) {
             self::assertStringNotContainsString('public_html', $this->projectFile($path), $path);
@@ -71,9 +76,28 @@ class DeploymentAssetBuildContractTest extends TestCase
             $this->projectFile('nginx.template.conf'),
         );
         self::assertStringContainsString(
-            'root /var/www/html/public;',
-            $this->projectFile('docker/nginx/default.conf'),
+            'DocumentRoot /var/www/html/public',
+            $this->projectFile('docker/apache-vhost.conf'),
         );
+    }
+
+    public function test_compose_runtime_contains_only_the_laravel_app_service(): void
+    {
+        foreach (['docker-compose.yml', 'docker-compose.prod.yml'] as $path) {
+            $compose = $this->projectFile($path);
+
+            self::assertMatchesRegularExpression('/^services:\R  app:\R/m', $compose, $path);
+            self::assertStringContainsString('docker/php/Dockerfile', $compose, $path);
+            self::assertStringContainsString(':80"', $compose, $path);
+            self::assertStringNotContainsString("\n  web:", $compose, $path);
+            self::assertStringNotContainsString("\n  queue:", $compose, $path);
+            self::assertStringNotContainsString("\n  scheduler:", $compose, $path);
+            self::assertStringNotContainsString("\n  vite:", $compose, $path);
+            self::assertStringNotContainsString('nginx:', $compose, $path);
+            self::assertStringNotContainsString('php-fpm', $compose, $path);
+        }
+
+        self::assertSame('sync', $this->environmentValue('QUEUE_CONNECTION'));
     }
 
     private function projectFile(string $path): string
@@ -83,5 +107,15 @@ class DeploymentAssetBuildContractTest extends TestCase
         self::assertIsString($contents, $path.' must exist and be readable.');
 
         return $contents;
+    }
+
+    private function environmentValue(string $key): string
+    {
+        $environment = $this->projectFile('.env.example');
+        preg_match('/^'.preg_quote($key, '/').'=(.*)$/m', $environment, $matches);
+
+        self::assertArrayHasKey(1, $matches, "{$key} must be declared in .env.example.");
+
+        return trim($matches[1], " \t\n\r\0\x0B\"'");
     }
 }
