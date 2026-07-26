@@ -7209,3 +7209,21 @@ Rollback:
   asset publisher. The package now stores CSS at `resources/css/admin-theme.css`
   and has no `assets` catalog, so updating the default admin theme no longer
   tries to create `/app/public/platform/plugins/admin-theme`.
+
+## 2026-07-27 - Page Builder platform_pages schema repair
+
+- Root cause: production had Page Builder active, but `platform_pages` was
+  missing the unified hierarchy/menu columns expected by
+  `modules/PageBuilder/src/Http/Controllers/Admin/PageController.php`:
+  `parent_id`, `category`, `menu_label`, and `show_in_menu`.
+- Kept the repair fully plugin-owned by adding the new Page Builder migration
+  `2026_07_27_000002_ensure_platform_page_hierarchy_columns.php` and removing
+  the temporary app-level repair migration.
+- Bumped Page Builder from `2.0.0` to `2.0.1`. Installing or updating the
+  plugin runs the new pending migration even when the older unification
+  migration is already recorded on production.
+- Moved the focused schema regression test under `modules/PageBuilder/tests`.
+- The repair is idempotent and only adds missing columns, preserving existing
+  pages, headers, and footers.
+- Rebuilt the canonical `modules/PageBuilder.zip` distribution with the new
+  migration and manifest version.
