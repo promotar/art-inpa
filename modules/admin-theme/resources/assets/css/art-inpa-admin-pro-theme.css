@@ -276,7 +276,6 @@ textarea {
 .z4-admin-link:hover {
     background: rgba(75, 139, 212, 0.16) !important;
     color: #ffffff !important;
-    transform: translateX(2px);
 }
 
 .z4-admin-link.is-active {
@@ -411,7 +410,6 @@ textarea {
     background: rgba(75, 139, 212, 0.14) !important;
     border-color: rgba(148, 180, 220, 0.13) !important;
     color: #ffffff !important;
-    transform: translateX(2px);
 }
 
 .z4-admin-sidebar .z4-admin-link.is-active {
@@ -3036,7 +3034,6 @@ html body .dashboard-sidebar a:hover,
 html body {
     background: #fff4ef !important;
     color: var(--ainpa-pro-red) !important;
-    transform: translateX(1px);
 }
 
 html body .z4-admin-sidebar .z4-admin-link.is-active,
@@ -5408,7 +5405,7 @@ html body:has(nav.z4-admin-nav) .min-h-screen.bg-gray-100 > header.bg-white {
     box-shadow: var(--ainpa-shadow-md) !important;
     display: grid !important;
     gap: 4px !important;
-    left: var(--z4-submenu-flyout-left, calc(var(--ainpa-admin-sidebar-width) + 12px)) !important;
+    left: calc(var(--ainpa-admin-sidebar-width) + 12px) !important;
     margin: 0 !important;
     max-height: calc(100vh - var(--ainpa-admin-topbar-height) - 24px) !important;
     max-width: min(300px, calc(100vw - var(--ainpa-admin-sidebar-width) - 24px)) !important;
@@ -5417,7 +5414,7 @@ html body:has(nav.z4-admin-nav) .min-h-screen.bg-gray-100 > header.bg-white {
     padding: 9px 10px !important;
     position: fixed !important;
     right: auto !important;
-    top: var(--z4-submenu-flyout-top, calc(var(--ainpa-admin-topbar-height) + 8px)) !important;
+    top: calc(var(--ainpa-admin-topbar-height) + 8px) !important;
     width: max-content !important;
     z-index: 1260 !important;
   }

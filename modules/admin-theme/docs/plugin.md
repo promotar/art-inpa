@@ -1,6 +1,6 @@
-# Art INPA Admin Pro Theme
+# Admin Theme
 
-Professional navy and blue admin dashboard theme for the Art INPA platform.
+Default protected admin dashboard theme for the Art INPA platform.
 
 ## Purpose
 
@@ -8,20 +8,30 @@ This plugin changes the admin dashboard visual layer through the existing platfo
 
 ## Install
 
-1. Upload `art-inpa-admin-pro-theme.zip` from the admin plugin installer.
+1. Upload `admin-theme.zip` from the admin plugin installer.
 2. Install the plugin.
 3. Activate the plugin.
 4. Confirm the CSS was published to:
 
 ```text
-public/platform/plugins/art-inpa-admin-pro-theme/css/art-inpa-admin-pro-theme.css
+public/platform/plugins/admin-theme/css/art-inpa-admin-pro-theme.css
 ```
 
 5. Confirm the admin layout includes a stylesheet link with:
 
 ```text
-data-plugin-admin-style="art-inpa-admin-pro-theme"
+data-plugin-admin-style="admin-theme"
 ```
+
+## Admin Theme Policy
+
+- `admin-theme` is the default protected admin theme.
+- The platform keeps exactly one admin theme active.
+- Activating another admin theme disables `admin-theme`.
+- Deactivating the active custom admin theme automatically restores
+  `admin-theme`.
+- Directly deactivating `admin-theme` is blocked while it is the fallback admin
+  theme.
 
 ## Fast Editing
 

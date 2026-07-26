@@ -10,7 +10,10 @@ use Throwable;
 
 class RequiredCorePluginSynchronizer
 {
-    public function __construct(private readonly PluginManifestReader $manifests) {}
+    public function __construct(
+        private readonly PluginManifestReader $manifests,
+        private readonly ?AdminThemeManager $adminThemes = null,
+    ) {}
 
     public function synchronize(): void
     {
@@ -31,6 +34,10 @@ class RequiredCorePluginSynchronizer
             }
 
             if (! $this->isRequiredCorePlugin($manifest->manifest)) {
+                if ($this->isDefaultAdminTheme($manifest->manifest)) {
+                    $this->synchronizeDefaultAdminTheme($manifest, $manifestPath);
+                }
+
                 continue;
             }
 
@@ -56,6 +63,8 @@ class RequiredCorePluginSynchronizer
 
             $this->enableRuntime($manifest->slug);
         }
+
+        $this->adminThemes?->ensureDefaultWhenNoAdminThemeActive();
     }
 
     /**
@@ -68,6 +77,53 @@ class RequiredCorePluginSynchronizer
         return $core === true
             || (is_string($core) && in_array(strtolower(trim($core)), ['1', 'true', 'yes', 'on'], true))
             || (is_int($core) && $core === 1);
+    }
+
+    /**
+     * @param  array<string, mixed>  $manifest
+     */
+    private function isDefaultAdminTheme(array $manifest): bool
+    {
+        return (string) data_get($manifest, 'slug') === AdminThemeManager::DEFAULT_SLUG
+            && strtolower((string) data_get($manifest, 'type')) === 'theme'
+            && strtolower((string) data_get($manifest, 'theme.scope')) === 'admin'
+            && (bool) data_get($manifest, 'theme.default', false);
+    }
+
+    private function synchronizeDefaultAdminTheme(\App\Platform\Core\DTOs\PluginManifest $manifest, string $manifestPath): void
+    {
+        $plugin = Plugin::query()->firstOrNew(['slug' => $manifest->slug]);
+        $status = Plugin::query()
+            ->where('slug', '!=', $manifest->slug)
+            ->where('status', Plugin::STATUS_ACTIVE)
+            ->get()
+            ->filter(fn (Plugin $plugin): bool => $plugin->isAdminTheme())
+            ->isNotEmpty()
+                ? Plugin::STATUS_DISABLED
+                : Plugin::STATUS_ACTIVE;
+
+        $plugin->forceFill([
+            'name' => $manifest->name,
+            'version' => $manifest->version,
+            'description' => $manifest->description,
+            'author' => $manifest->author,
+            'status' => $status,
+            'path' => dirname($manifestPath),
+            'provider' => $manifest->provider,
+            'manifest' => $manifest->manifest,
+            'dependencies' => $manifest->dependencies,
+            'installed_at' => $plugin->installed_at ?? now(),
+            'activated_at' => $status === Plugin::STATUS_ACTIVE ? ($plugin->activated_at ?? now()) : null,
+            'disabled_at' => $status === Plugin::STATUS_DISABLED ? ($plugin->disabled_at ?? now()) : null,
+        ]);
+
+        if (! $plugin->exists || $plugin->isDirty()) {
+            $plugin->save();
+        }
+
+        if ($status === Plugin::STATUS_ACTIVE) {
+            $this->enableRuntime($manifest->slug);
+        }
     }
 
     private function enableRuntime(string $slug): void

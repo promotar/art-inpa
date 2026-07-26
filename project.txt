@@ -1848,3 +1848,19 @@ Current behavior:
   overridden with `PLATFORM_DEFAULT_SUPER_ADMIN_NAME`,
   `PLATFORM_DEFAULT_SUPER_ADMIN_EMAIL`, and
   `PLATFORM_DEFAULT_SUPER_ADMIN_PASSWORD`.
+
+## Platform 2.5.0 Admin Theme Fallback Policy - 2026-07-26
+
+- `admin-theme` is the default protected admin dashboard theme. It replaces the
+  previous `art-inpa-admin-pro-theme` slug and package name.
+- Admin themes are declared with manifest `type: theme` and
+  `theme.scope: admin`. The default theme also declares
+  `theme.default: true`.
+- The platform allows many installed admin theme plugins, but exactly one
+  admin theme should be active. Activating a custom admin theme automatically
+  disables the default admin theme and any other active admin theme.
+- Directly deactivating `admin-theme` is blocked while no replacement admin
+  theme is active. Deactivating the active custom admin theme automatically
+  restores `admin-theme`.
+- `modules/admin-theme.zip` is the retained distributable archive for the
+  default admin theme.

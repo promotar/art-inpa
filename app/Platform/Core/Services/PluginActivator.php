@@ -21,6 +21,7 @@ class PluginActivator
         private readonly StepBackupper $stepBackups,
         private readonly PluginPackageValidator $packageValidator,
         private readonly PluginFilesystem $filesystem,
+        private readonly ?AdminThemeManager $adminThemes = null,
         private readonly ?PluginLifecycleHookRunner $lifecycleHooks = null,
         private readonly ?PluginAssetRegistry $assets = null,
     ) {
@@ -59,6 +60,10 @@ class PluginActivator
         $this->runtime->enable($plugin->slug);
         $this->checkpointStep($plugin->slug, 'runtime_enabled');
         $this->flushRuntimeGate($plugin->slug);
+        if ($this->adminThemes !== null) {
+            $plugin = $this->adminThemes->afterActivation($plugin);
+            $this->checkpointStep($plugin->slug, 'admin_theme_policy_enforced');
+        }
         if ($this->assets !== null) {
             $assetState = $this->assets->synchronize($plugin);
             $this->checkpointStep($plugin->slug, 'assets_synchronized', [

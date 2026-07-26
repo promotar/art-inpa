@@ -8,7 +8,7 @@ class AdminThemeSubmenuPositioningTest extends TestCase
 {
     public function test_flyout_coordinates_are_applied_directly_to_the_visible_panels(): void
     {
-        $themePath = __DIR__.'/../../modules/art-inpa-admin-pro-theme/resources/assets/css/art-inpa-admin-pro-theme.css';
+        $themePath = __DIR__.'/../../modules/admin-theme/resources/assets/css/art-inpa-admin-pro-theme.css';
 
         if (! is_file($themePath)) {
             self::markTestSkipped('The optional admin theme plugin is not installed.');

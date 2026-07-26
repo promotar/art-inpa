@@ -7176,3 +7176,29 @@ Rollback:
   the `super-admin` role.
 - Existing databases with at least one user are left unchanged, so ordinary
   pull/deploy migrations do not recreate or overwrite owner accounts.
+
+## 2026-07-26 - Protected default admin theme policy
+
+- Renamed the default admin theme package from `art-inpa-admin-pro-theme` to
+  `admin-theme`, including the module directory, retained ZIP archive, manifest
+  slug/name, and plugin documentation.
+- Added `AdminThemeManager` as the Core policy service for admin theme
+  activation and fallback behavior.
+- Activation policy: when an admin theme plugin is activated, Core disables any
+  other active admin theme so only one admin dashboard theme remains active.
+- Deactivation policy: `admin-theme` cannot be directly disabled without an
+  active replacement; disabling a custom active admin theme restores
+  `admin-theme` automatically.
+- Added migration
+  `2026_07_26_000002_rename_default_admin_theme_plugin.php` to rename existing
+  database records and runtime references from `art-inpa-admin-pro-theme` to
+  `admin-theme`.
+- Updated the Plugins UI to label default/admin themes and hide the direct
+  deactivate action for the default admin theme.
+- Rebuilt `modules/admin-theme.zip` from the renamed package so the retained
+  distributable archive matches the new slug.
+- Verification passed:
+  `AdminThemePolicyTest` 2 tests / 20 assertions,
+  `PluginLifecycleContractTest` 2 tests / 20 assertions,
+  `AdminThemeSubmenuPositioningTest` 1 test / 12 assertions,
+  `PluginArchitectureContractTest` 10 tests / 420 assertions.

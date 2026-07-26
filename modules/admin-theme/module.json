@@ -1,8 +1,12 @@
 {
-  "name": "Art INPA Admin Pro Theme",
-  "slug": "art-inpa-admin-pro-theme",
+  "name": "Admin Theme",
+  "slug": "admin-theme",
   "version": "1.0.1",
   "type": "theme",
+  "theme": {
+    "scope": "admin",
+    "default": true
+  },
   "platform_version": ">=2.5.0 <3.0.0",
   "description": "Professional light admin dashboard theme using the Art INPA red and orange visual identity.",
   "author": "Art INPA",
@@ -18,14 +22,14 @@
     }
   },
   "functions": {
-    "art-inpa-admin-pro-theme.assets.inject": {
-      "description": "Inject the Art INPA Admin Pro Theme stylesheet into the active admin dashboard layout."
+    "admin-theme.assets.inject": {
+      "description": "Inject the default admin theme stylesheet into the active admin dashboard layout."
     }
   },
   "hooks": {
-    "art-inpa-admin-pro-theme.loaded": {
+    "admin-theme.loaded": {
       "type": "action",
-      "description": "Fires when the Art INPA Admin Pro Theme plugin is available."
+      "description": "Fires when the default admin theme plugin is available."
     }
   },
   "docs": "docs/plugin.md",

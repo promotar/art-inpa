@@ -55,6 +55,26 @@ class Plugin extends Model
             || (is_int($core) && $core === 1);
     }
 
+    public function isAdminTheme(): bool
+    {
+        $manifest = is_array($this->manifest) ? $this->manifest : [];
+        $type = strtolower(trim((string) data_get($manifest, 'type', '')));
+        $scope = strtolower(trim((string) data_get($manifest, 'theme.scope', data_get($manifest, 'scope', ''))));
+
+        return $type === 'theme' && $scope === 'admin';
+    }
+
+    public function isDefaultAdminTheme(): bool
+    {
+        $manifest = is_array($this->manifest) ? $this->manifest : [];
+        $default = data_get($manifest, 'theme.default', false);
+
+        return $this->slug === 'admin-theme'
+            || $default === true
+            || (is_string($default) && in_array(strtolower(trim($default)), ['1', 'true', 'yes', 'on'], true))
+            || (is_int($default) && $default === 1);
+    }
+
     /**
      * @param Builder<Plugin> $query
      * @return Builder<Plugin>

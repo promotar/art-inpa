@@ -19,6 +19,7 @@ class PluginDeactivator
         private readonly OperationLogger $operations,
         private readonly FailedOperationLogger $failedOperations,
         private readonly StepBackupper $stepBackups,
+        private readonly ?AdminThemeManager $adminThemes = null,
         private readonly ?PluginLifecycleHookRunner $lifecycleHooks = null,
     ) {
         //
@@ -30,6 +31,10 @@ class PluginDeactivator
 
         if ($resolved->isCore()) {
             throw new RuntimeException("Core plugin [{$resolved->slug}] cannot be deactivated.");
+        }
+
+        if ($this->adminThemes !== null) {
+            $this->adminThemes->guardManualDeactivation($resolved);
         }
 
         $operation = $this->operations->start('plugin.disable', 'plugin', $resolved->slug);
@@ -46,6 +51,10 @@ class PluginDeactivator
             $this->runtime->disable($plugin->slug);
             $this->checkpointStep($plugin->slug, 'runtime_disabled');
             $this->flushRuntimeGate($plugin->slug);
+            if ($this->adminThemes !== null) {
+                $this->adminThemes->afterDeactivation($plugin);
+                $this->checkpointStep($plugin->slug, 'admin_theme_fallback_enforced');
+            }
             $this->cache->clear();
             $this->checkpointStep($plugin->slug, 'cache_cleared');
 

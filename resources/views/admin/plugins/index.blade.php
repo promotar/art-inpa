@@ -44,6 +44,11 @@
                                     @if ($plugin->isCore())
                                         <span class="ainpa-status-badge ainpa-status-active" title="Required by the platform and protected from deactivation or uninstall.">core</span>
                                     @endif
+                                    @if ($plugin->isDefaultAdminTheme())
+                                        <span class="ainpa-status-badge ainpa-status-active" title="Default fallback admin theme. Another admin theme can replace it, but it cannot be directly disabled.">default admin theme</span>
+                                    @elseif ($plugin->isAdminTheme())
+                                        <span class="ainpa-status-badge ainpa-status-inactive" title="Only one admin theme can be active at a time.">admin theme</span>
+                                    @endif
                                 </td>
                                 <td class="ainpa-table-muted">
                                     {{ optional($plugin->installed_at)->format('Y-m-d H:i') ?? 'Not installed' }}
@@ -66,11 +71,13 @@
                                 </td>
                                 <td class="ainpa-table-path">{{ $plugin->installed_path }}</td>
                                 <td class="ainpa-table-actions">
-                                    @if ($plugin->status === 'active' && ! $plugin->isCore())
+                                    @if ($plugin->status === 'active' && ! $plugin->isCore() && ! $plugin->isDefaultAdminTheme())
                                         <form method="POST" action="{{ route('admin.plugins.deactivate', $plugin->slug) }}" class="ainpa-action-form">
                                             @csrf @method('PATCH')
                                             <button class="ainpa-button ainpa-button-danger ainpa-button-compact">Deactivate</button>
                                         </form>
+                                    @elseif ($plugin->status === 'active' && $plugin->isDefaultAdminTheme())
+                                        <button class="ainpa-button ainpa-button-compact" type="button" disabled title="The default admin theme is restored automatically when no custom admin theme is active.">Default theme</button>
                                     @elseif ($plugin->status === 'active')
                                         <button class="ainpa-button ainpa-button-compact" type="button" disabled title="Core plugins are required by the platform.">Core plugin</button>
                                     @else
