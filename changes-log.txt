@@ -7144,3 +7144,35 @@ Rollback:
   419 assertions. Full suite passed: 88 tests,
   668 assertions, 3 optional-theme skips, zero failures.
 - Production was not accessed or changed.
+
+## 2026-07-26 - Fix missing backup core after GitHub clone
+
+- Root cause: `.gitignore` used `backups/`, which ignored any directory named
+  `Backups` in the tree. The local working copy had
+  `app/Platform/Core/Backups/*`, but Git did not track those classes, so fresh
+  clones in another container missed `App\Platform\Core\Backups\BackupManager`
+  and plugin install failed with Laravel's binding resolution exception.
+- Changed `.gitignore` from `backups/` to `/backups/` so only the root backup
+  artifact directory stays ignored.
+- Added the backup source classes to the Git index:
+  `BackupCheckpoint.php`, `BackupManager.php`, `RestoreNoteManager.php`, and
+  `StepBackupper.php`.
+- Added `resources/views/admin/backups/index.blade.php`, which is required by
+  the tracked `BackupController`.
+- Verification: `php -r "require 'vendor/autoload.php'; echo class_exists('App\\\\Platform\\\\Core\\\\Backups\\\\BackupManager') ? 'BackupManager OK' : 'BackupManager MISSING';"`
+  returned `BackupManager OK`.
+- Note: `php artisan route:list` timed out in the local shell during this
+  session, so the final route/plugin POST check should be run inside the target
+  app container after pulling the commit and clearing Laravel caches.
+
+## 2026-07-26 - Bootstrap default super-admin after database fresh
+
+- Added `config/platform_bootstrap.php` for default owner bootstrap values.
+- Added migration
+  `2026_07_26_000001_bootstrap_default_super_admin_for_empty_database.php`.
+- Behavior: after `php artisan migrate:fresh --force`, the migration creates
+  the default account only when `users` is empty, verifies the email timestamp,
+  syncs default roles and permissions through `PermissionManager`, and assigns
+  the `super-admin` role.
+- Existing databases with at least one user are left unchanged, so ordinary
+  pull/deploy migrations do not recreate or overwrite owner accounts.

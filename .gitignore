@@ -2,7 +2,7 @@
 .DS_Store
 .env
 .env.live.backup
-backups/
+/backups/
 docker/secrets/
 .env.backup
 .env.production

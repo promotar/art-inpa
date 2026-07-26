@@ -1824,3 +1824,27 @@ Current behavior:
 - Update backups, uninstall artifacts, install/uninstall checkpoints, extracted
   workspaces, and pending uploads remain temporary lifecycle resources and are
   still removed.
+
+## Platform 2.5.0 Git-Tracked Backup Core - 2026-07-26
+
+- The root backup archive directory is ignored as `/backups/` only. Do not use
+  a broad `backups/` ignore rule because it also hides source directories named
+  `Backups` under `app/`.
+- `app/Platform/Core/Backups` is source code and must be committed. Plugin
+  install, update, backup administration, and checkpoint flows depend on
+  `BackupManager`, `BackupCheckpoint`, `RestoreNoteManager`, and
+  `StepBackupper`.
+- `resources/views/admin/backups/index.blade.php` is part of the same backup
+  administration surface and must ship with fresh Git clones.
+
+## Platform 2.5.0 Empty Database Super Admin Bootstrap - 2026-07-26
+
+- Fresh database rebuilds must leave the platform operable without manual SQL.
+  A late bootstrap migration creates the default owner super-admin only when
+  the `users` table is empty.
+- Existing deployments with users are not mutated by this bootstrap. Normal
+  pull/deploy migrations do not reset or overwrite owner accounts.
+- Default credentials are read from `config/platform_bootstrap.php` and may be
+  overridden with `PLATFORM_DEFAULT_SUPER_ADMIN_NAME`,
+  `PLATFORM_DEFAULT_SUPER_ADMIN_EMAIL`, and
+  `PLATFORM_DEFAULT_SUPER_ADMIN_PASSWORD`.
