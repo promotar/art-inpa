@@ -1,3 +1,17 @@
+FROM node:22-bookworm-slim AS vite-assets
+
+WORKDIR /build
+
+COPY package.json package-lock.json ./
+
+RUN npm ci --include=dev --no-audit --no-fund
+
+COPY . .
+
+RUN rm -f public/hot \
+    && npm run build \
+    && test -s public/build/manifest.json
+
 FROM php:8.2-fpm-bookworm
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -36,6 +50,7 @@ COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-art-inpa.ini
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/99-art-inpa.conf
 COPY docker/php/entrypoint.sh /usr/local/bin/art-inpa-entrypoint
 COPY docker/php/php-fpm-wrapper.sh /usr/local/sbin/php-fpm-wrapper
+COPY --from=vite-assets /build/public/build /opt/art-inpa/public/build
 
 RUN mv /usr/local/sbin/php-fpm /usr/local/sbin/php-fpm-real \
     && mv /usr/local/sbin/php-fpm-wrapper /usr/local/sbin/php-fpm \
@@ -43,4 +58,3 @@ RUN mv /usr/local/sbin/php-fpm /usr/local/sbin/php-fpm-real \
 
 ENTRYPOINT ["art-inpa-entrypoint"]
 CMD ["php-fpm", "-F"]
-

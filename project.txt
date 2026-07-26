@@ -1,5 +1,26 @@
 # خطة تنفيذ مشروع Art INPA النهائية
 
+## Production Frontend Build Contract - 2026-07-26
+
+- `public/build` and `public/hot` are generated runtime artifacts and remain
+  excluded from Git and Docker build contexts.
+- Every production image must generate and verify
+  `public/build/manifest.json` during its build phase. Laravel must never start
+  and discover a missing Vite manifest at request time.
+- Coolify/Nixpacks uses repository-root `nixpacks.toml` as the frontend build
+  contract: install build dependencies, remove a development hot marker, run
+  Vite, and fail the image build if the manifest is empty or absent.
+- `package.json` pins the Nixpacks/Node build runtime to Node `22.x`, matching
+  Vite 7 requirements and the Docker frontend builder.
+- The PHP Docker image contains an immutable Vite build produced by a Node
+  builder stage. Source bind mounts may hide image files, so the entrypoint may
+  copy this already-verified artifact into an empty mounted `public/build`.
+- Production startup must not install Node.js, run npm, access external package
+  registries, or hide frontend build failures. A broken image exits with an
+  actionable error.
+- The platform compatibility version remains `2.5.0`; this deployment contract
+  does not change the plugin API or manifest schema.
+
 ## ملاحظة تشغيلية محدثة - Page Builder / Theme Builder
 
 - محرر Page Builder وTheme Builder يجب أن يعرض نفس HTML/CSS الذي يظهر في مخرج الموقع الحقيقي، خصوصاً للهيدر والفوتر والقوالب العامة.

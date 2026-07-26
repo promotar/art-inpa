@@ -1,5 +1,32 @@
 # Backups Log
 
+## 2026-07-26 - Coolify Vite build contract recovery point
+
+### Backup
+
+`backups\coolify-vite-build-contract-20260726-123530`
+
+### Scope
+
+- Pre-change `.dockerignore`, PHP Dockerfile, entrypoint, `package.json`, and
+  `package-lock.json`.
+- Pre-change deployment, setup, project, change-log, and backup-log files.
+- `SHA256SUMS.txt` with hashes and byte sizes for all ten files.
+
+### Reason
+
+Recovery point before replacing runtime npm installation with deterministic
+build-time Vite assets for fresh GitHub/Coolify deployments.
+
+### Rollback
+
+- Verify all ten entries against `SHA256SUMS.txt`.
+- Restore files to their matching relative paths.
+- Remove `nixpacks.toml` and
+  `tests/Unit/DeploymentAssetBuildContractTest.php`.
+- Rebuild the deployment image without cache.
+- No database restore is required. Production was not accessed.
+
 ## 2026-07-03 - AI Core ai-assistant Agent Runtime Frontend Fix Backup
 
 ### Backup Location
