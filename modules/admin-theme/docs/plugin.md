@@ -14,7 +14,7 @@ This plugin changes the admin dashboard visual layer through the existing platfo
 4. Confirm the CSS was published to:
 
 ```text
-public/platform/plugins/admin-theme/css/art-inpa-admin-pro-theme.css
+public/platform/plugins/admin-theme/css/admin-theme.css
 ```
 
 5. Confirm the admin layout includes a stylesheet link with:
@@ -38,7 +38,7 @@ data-plugin-admin-style="admin-theme"
 The main editable file is:
 
 ```text
-resources/assets/css/art-inpa-admin-pro-theme.css
+resources/assets/css/admin-theme.css
 ```
 
 The first section of the file contains CSS variables. Edit those values for quick changes:

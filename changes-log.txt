@@ -7202,3 +7202,6 @@ Rollback:
   `PluginLifecycleContractTest` 2 tests / 20 assertions,
   `AdminThemeSubmenuPositioningTest` 1 test / 12 assertions,
   `PluginArchitectureContractTest` 10 tests / 420 assertions.
+- Follow-up package fix: cleaned `admin-theme` so the distributable ZIP ships
+  only one runtime CSS asset, `resources/assets/css/admin-theme.css`, and no
+  local `.bak` or historical CSS backup files are published to production.

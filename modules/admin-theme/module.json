@@ -17,7 +17,7 @@
     "source": "resources/assets",
     "admin": {
       "styles": [
-        "css/art-inpa-admin-pro-theme.css"
+        "css/admin-theme.css"
       ]
     }
   },
