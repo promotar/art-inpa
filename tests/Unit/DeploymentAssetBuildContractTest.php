@@ -50,6 +50,32 @@ class DeploymentAssetBuildContractTest extends TestCase
         self::assertMatchesRegularExpression('/^public\/hot$/m', $dockerignore);
     }
 
+    public function test_runtime_never_redirects_the_public_root_to_public_html(): void
+    {
+        foreach ([
+            'app/Providers/AppServiceProvider.php',
+            'docker-compose.yml',
+            'docker-compose.prod.yml',
+            'docker/nginx/default.conf',
+            'nginx.template.conf',
+        ] as $path) {
+            self::assertStringNotContainsString('public_html', $this->projectFile($path), $path);
+        }
+
+        self::assertStringNotContainsString(
+            'usePublicPath(',
+            $this->projectFile('app/Providers/AppServiceProvider.php'),
+        );
+        self::assertStringContainsString(
+            'root /app/public;',
+            $this->projectFile('nginx.template.conf'),
+        );
+        self::assertStringContainsString(
+            'root /var/www/html/public;',
+            $this->projectFile('docker/nginx/default.conf'),
+        );
+    }
+
     private function projectFile(string $path): string
     {
         $contents = file_get_contents(dirname(__DIR__, 2).'/'.$path);

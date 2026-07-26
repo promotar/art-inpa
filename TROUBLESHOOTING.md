@@ -10,6 +10,10 @@ Vite manifest not found at: .../public/build/manifest.json
 This means the deployed image skipped or overrode the repository frontend build
 phase. It is an image-build failure, not a Blade styling problem.
 
+If the exception path points outside `<project-root>/public`, inspect service
+providers for a stale `usePublicPath()` override. Art INPA intentionally uses
+Laravel's default project-root public directory.
+
 ## Coolify Checks
 
 1. Confirm the build pack is `Nixpacks`.

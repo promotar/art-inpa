@@ -2,6 +2,60 @@
 
 This file records completed project changes, reasons, impact, verification, and notes.
 
+## 2026-07-26 - Core environment version 2.5.1
+
+- Raised the backward-compatible Core release from `2.5.0` to `2.5.1`.
+- Added `PLATFORM_VERSION=2.5.1` to the local environment and deployment
+  environment example.
+- Matched the platform config fallback to the same release version.
+- Added a contract test that rejects drift between `.env.example`, runtime
+  config, and the declared fallback.
+- Established semantic version policy: every completed Core change increments
+  `PLATFORM_VERSION`; patch for compatible fixes, minor for compatible
+  capabilities, and major for breaking plugin/API changes.
+- Plugins targeting `>=2.5.0 <3.0.0` remain compatible.
+- Runtime verification returned `2.5.1` from environment, config, and
+  `PlatformVersion::current()`; focused tests passed with 2 tests and
+  8 assertions.
+
+## 2026-07-26 - Project-root public path for Laravel, Vite, and Coolify
+
+### Root cause
+
+- `AppServiceProvider::boot()` called
+  `usePublicPath(base_path('../public_html'))`.
+- This overrode Laravel's correct project-root public directory after the app
+  booted. Vite therefore searched outside the source checkout even though
+  Coolify Nginx served `/app/public`.
+- The failed filesystem lookup was
+  `/app/../public_html/build/manifest.json`; the generated manifest correctly
+  lived under the repository `public/build`.
+
+### Changes
+
+- Removed the public-path override and restored Laravel's default
+  `base_path('public')` contract.
+- Removed redundant sibling public-directory mounts from local and production
+  Compose.
+- Unified Compose Nginx on `docker/nginx/default.conf`, rooted at
+  `/var/www/html/public`; Coolify Nixpacks remains rooted at `/app/public`.
+- Added static deployment assertions and a booted Laravel feature test proving
+  that `public_path('build/manifest.json')` stays under the project root.
+- Replaced active project/theme documentation that instructed developers to
+  publish or synchronize assets to a sibling public directory.
+
+### Verification
+
+- Laravel runtime reported `base_path=/var/www/html`,
+  `public_path=/var/www/html/public`, and manifest path
+  `/var/www/html/public/build/manifest.json`.
+- Runtime/config scan found no operational sibling public-directory reference.
+- Both Compose configurations validated.
+- Final public-root and plugin-asset tests passed: 7 tests and 58 assertions.
+- Recreated Nginx served the production bundle: `/login` returned `200`, CSS
+  returned `200`, and the bundle contained `ainpa-auth-card`.
+- Production was not accessed and no database change was required.
+
 ## 2026-07-03 - AI Core ai-assistant Agent Runtime Active Frontend Test
 
 ### Scope

@@ -7,6 +7,12 @@
 - Every production image must generate and verify
   `public/build/manifest.json` during its build phase. Laravel must never start
   and discover a missing Vite manifest at request time.
+- Laravel uses its framework default public root, `base_path('public')`. No
+  service provider, deployment adapter, plugin, or web server may redirect
+  `public_path()` to a sibling directory.
+- Vite resolves the manifest relative to that public root as
+  `public/build/manifest.json`; browsers request the generated files through
+  `/build/...`.
 - Coolify/Nixpacks uses repository-root `nixpacks.toml` as the frontend build
   contract: install build dependencies, remove a development hot marker, run
   Vite, and fail the image build if the manifest is empty or absent.
@@ -18,14 +24,18 @@
 - Production startup must not install Node.js, run npm, access external package
   registries, or hide frontend build failures. A broken image exits with an
   actionable error.
-- The platform compatibility version remains `2.5.0`; this deployment contract
-  does not change the plugin API or manifest schema.
+- Core release versioning is environment-driven through `PLATFORM_VERSION`.
+  Every completed Core change increments the semantic version before
+  deployment: patch for compatible fixes, minor for backward-compatible
+  capability, and major for breaking plugin/API contracts.
+- Current Core release: `2.5.1`. This public-root and deployment correction is
+  backward-compatible with plugins targeting `>=2.5.0 <3.0.0`.
 
 ## ملاحظة تشغيلية محدثة - Page Builder / Theme Builder
 
 - محرر Page Builder وTheme Builder يجب أن يعرض نفس HTML/CSS الذي يظهر في مخرج الموقع الحقيقي، خصوصاً للهيدر والفوتر والقوالب العامة.
 - إذا كان `page_builder_json` مخزناً كـ export wrapper وليس GrapesJS project مباشر، يجب على النظام تجاهله كـ project والرجوع إلى HTML/CSS المحفوظ حتى لا يظهر الكانفس فارغاً.
-- Apache يخدم ملفات الواجهة العامة من `/var/www/store.z4rank.com/public_html`، لذلك أي asset منشور مثل `vendor/front-builder/page-builder/page-builder.js` يجب أن يكون متزامناً مع نسخة Laravel داخل `/var/www/store.z4rank.com/laravel/public`.
+- كل web server يجب أن يخدم مجلد `public` الموجود داخل جذر مشروع Laravel. أي asset منشور مثل `vendor/front-builder/page-builder/page-builder.js` يبقى نسبة إلى مجلد `public` نفسه ولا تتم مزامنته إلى مجلد شقيق خارجي.
 - لا يجوز أن يكسر نقص إعدادات widget schema تحميل المحرر؛ يجب أن تتعامل واجهة الإعدادات مع العناصر الناقصة بشكل fail-open داخل المحرر.
 - المرحلة الحالية من تحويل Page Builder إلى Schema-first تعرض فقط العناصر الجديدة: Container وHeading وImage. العناصر القديمة تبقى في الكود للتوافق والتدرج، لكنها ليست مصدر الحقيقة للعناصر الجديدة الظاهرة في المحرر.
 - أي Widget جديد لاحقاً يجب أن يملك تعريفاً موحداً كاملاً: `type`, `label`, `icon`, `category`, `default_props`, `general_schema`, `style_schema`, `advanced_schema`, `supports`, `editor_preview_renderer`, `frontend_renderer_reference`.
@@ -965,10 +975,10 @@ admin-pro-theme-plugin/art-inpa-admin-pro-theme
 - لا يوجد تعديل على Laravel core ولا نشر تلقائي على البرودكشن.
 - التعديل السريع يتم من ملف CSS وفي أعلاه variables للألوان والمسافات والظلال وعرض السايدبار.
 
-بعد الرفع اليدوي والتفعيل يجب التحقق من نشر الملف إلى:
+بعد الرفع اليدوي والتفعيل يجب التحقق من نشر الملف نسبة إلى جذر المشروع:
 
 ```text
-/var/www/store.z4rank.com/public_html/platform/plugins/art-inpa-admin-pro-theme/css/art-inpa-admin-pro-theme.css
+public/platform/plugins/art-inpa-admin-pro-theme/css/art-inpa-admin-pro-theme.css
 ```
 
 ثم التأكد أن صفحة الأدمن تحتوي:
@@ -1571,7 +1581,8 @@ Current behavior:
 
 - Login, registration, and email verification pages are core Laravel views under `resources/views/auth`; they are not plugin-owned.
 - Auth visual styling lives in `resources/css/auth.css` and is loaded through the normal Vite app bundle.
-- Public web assets are built to Laravel `public/build` and must be synced to `/var/www/store.z4rank.com/public_html/build` because Apache serves the public site from `public_html`.
+- Public web assets are built and served directly from Laravel
+  `public/build`; no secondary public directory or synchronization step exists.
 - The core `User` model implements `MustVerifyEmail`.
 - New user registration fires the standard Laravel `Registered` event, sends an email verification notification, logs the user in, and redirects to `verification.notice`.
 - `/account` requires `auth` and `verified` middleware.

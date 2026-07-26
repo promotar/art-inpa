@@ -25,6 +25,9 @@ server is active. The manifest is generated during deployment:
 The runtime image intentionally does not contain npm and does not download
 Node.js. A missing build artifact stops startup with an actionable error.
 
+Laravel, Nginx, plugin assets, and Vite all use the repository `public`
+directory. There is no external or sibling public directory.
+
 ## Manual Source Verification
 
 ```bash

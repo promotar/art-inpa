@@ -6,6 +6,11 @@
 image must contain a non-empty `public/build/manifest.json` before Laravel
 starts.
 
+The application public root is always the `public` directory inside the
+repository. Laravel resolves it through the framework default
+`base_path('public')`; deployment code must not call `usePublicPath()` or point
+to a sibling web directory.
+
 The repository enforces this contract in both supported deployment paths:
 
 - Coolify with Nixpacks reads `nixpacks.toml`, installs development build
@@ -23,7 +28,7 @@ Frontend compilation never happens during container startup.
 2. Leave custom Install and Build commands empty so repository
    `nixpacks.toml` remains authoritative.
 3. Configure runtime environment variables, including `APP_KEY`, database,
-   cache, session, queue, mail, and `APP_URL`.
+   cache, session, queue, mail, `APP_URL`, and `PLATFORM_VERSION`.
 4. Set `APP_ENV=production` and `APP_DEBUG=false`.
 5. Deploy with a clean build when replacing a previously broken image.
 
@@ -37,6 +42,12 @@ test -s public/build/manifest.json
 
 `package.json` pins Node `22.x`; do not override it with an older Coolify
 Nixpacks Node version.
+
+For this release, set:
+
+```text
+PLATFORM_VERSION=2.5.1
+```
 
 Do not add `public/build` to Git and do not set a Coolify build command that
 overrides the repository build phase.
@@ -62,6 +73,12 @@ grep -Eo 'build/assets/[^"]+\.(css|js)' /tmp/login.html
 ```
 
 Request every reported CSS/JS URL and confirm HTTP `200`.
+
+Inside a running Laravel container, this must resolve within the source root:
+
+```bash
+php artisan tinker --execute="echo public_path('build/manifest.json');"
+```
 
 ## Rollback
 

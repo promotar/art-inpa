@@ -1,5 +1,52 @@
 # Backups Log
 
+## 2026-07-26 - Platform version 2.5.1 recovery point
+
+### Backup
+
+`backups\platform-version-2.5.1-20260726-144540`
+
+### Scope
+
+- Pre-change environment example, platform config, platform-version test,
+  deployment documentation, project memory, and logs.
+- `SHA256SUMS.txt` covering all seven files.
+- The secret-bearing local `.env` was intentionally not copied into the backup.
+
+### Rollback
+
+- Verify all seven entries against `SHA256SUMS.txt`.
+- Restore files to their matching relative paths.
+- Restore the previous local `PLATFORM_VERSION` manually only when rolling back
+  the code release.
+- No database restore is required. Production was not accessed.
+
+## 2026-07-26 - Project-root public path recovery point
+
+### Backup
+
+`backups\project-root-public-path-20260726-143040`
+
+### Scope
+
+- Pre-change application provider, local/production Compose, both Nginx
+  configurations, deployment test, active deployment documentation, project
+  memory, and logs.
+- `SHA256SUMS.txt` with hashes and sizes for all 12 files.
+
+### Reason
+
+Recovery point before removing the legacy sibling public-directory override and
+making the repository `public` directory the only runtime public root.
+
+### Rollback
+
+- Verify all 12 entries against `SHA256SUMS.txt`.
+- Restore files to their matching relative paths.
+- Remove `tests/Feature/PublicPathContractTest.php`.
+- Rebuild/redeploy the application image and recreate web/PHP services.
+- No database restore is required. Production was not accessed.
+
 ## 2026-07-26 - Coolify Vite build contract recovery point
 
 ### Backup

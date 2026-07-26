@@ -46,8 +46,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->app->usePublicPath(base_path('../public_html'));
-
         Blade::if('routeAllowed', function (?string $routeName): bool {
             return app(RouteAccessGate::class)->allowsRouteName(auth()->user(), $routeName);
         });

@@ -14,7 +14,7 @@ This plugin changes the admin dashboard visual layer through the existing platfo
 4. Confirm the CSS was published to:
 
 ```text
-/var/www/store.z4rank.com/public_html/platform/plugins/art-inpa-admin-pro-theme/css/art-inpa-admin-pro-theme.css
+public/platform/plugins/art-inpa-admin-pro-theme/css/art-inpa-admin-pro-theme.css
 ```
 
 5. Confirm the admin layout includes a stylesheet link with:
