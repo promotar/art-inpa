@@ -26,6 +26,26 @@ services:
       timeout: 5s
       retries: 10
 
+  web:
+    image: nginx:1.27-alpine
+    container_name: art-inpa-web
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8088:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./public:/var/www/public_html:ro
+    networks:
+      - app-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+
   queue:
     <<: *php-service
     container_name: art-inpa-queue
