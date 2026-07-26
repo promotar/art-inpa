@@ -7202,6 +7202,10 @@ Rollback:
   `PluginLifecycleContractTest` 2 tests / 20 assertions,
   `AdminThemeSubmenuPositioningTest` 1 test / 12 assertions,
   `PluginArchitectureContractTest` 10 tests / 420 assertions.
-- Follow-up package fix: cleaned `admin-theme` so the distributable ZIP ships
-  only one runtime CSS asset, `resources/assets/css/admin-theme.css`, and no
-  local `.bak` or historical CSS backup files are published to production.
+- Follow-up package fix: cleaned `admin-theme` so the package ships only one
+  runtime CSS source and no local `.bak` or historical CSS backup files.
+- Production upload follow-up: changed `admin-theme` to inject CSS from its
+  ServiceProvider using the admin `styles` stack instead of the Core public
+  asset publisher. The package now stores CSS at `resources/css/admin-theme.css`
+  and has no `assets` catalog, so updating the default admin theme no longer
+  tries to create `/app/public/platform/plugins/admin-theme`.

@@ -13,15 +13,6 @@
   "provider": "Modules\\ArtInpaAdminProTheme\\ArtInpaAdminProThemeServiceProvider",
   "provider_file": "src/ArtInpaAdminProThemeServiceProvider.php",
   "dependencies": [],
-  "assets": {
-    "source": "resources/assets",
-    "admin": {
-      "styles": [
-        "css/admin-theme.css",
-        "css/art-inpa-admin-pro-theme.css"
-      ]
-    }
-  },
   "functions": {
     "admin-theme.assets.inject": {
       "description": "Inject the default admin theme stylesheet into the active admin dashboard layout."

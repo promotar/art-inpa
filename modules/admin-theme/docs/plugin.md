@@ -11,17 +11,14 @@ This plugin changes the admin dashboard visual layer through the existing platfo
 1. Upload `admin-theme.zip` from the admin plugin installer.
 2. Install the plugin.
 3. Activate the plugin.
-4. Confirm the CSS was published to:
-
-```text
-public/platform/plugins/admin-theme/css/admin-theme.css
-```
-
-5. Confirm the admin layout includes a stylesheet link with:
+4. Confirm the admin layout contains an inline style block:
 
 ```text
 data-plugin-admin-style="admin-theme"
 ```
+
+The default admin theme injects CSS from its ServiceProvider and does not write
+to `public/platform/plugins`.
 
 ## Admin Theme Policy
 
@@ -38,7 +35,7 @@ data-plugin-admin-style="admin-theme"
 The main editable file is:
 
 ```text
-resources/assets/css/admin-theme.css
+resources/css/admin-theme.css
 ```
 
 The first section of the file contains CSS variables. Edit those values for quick changes:
@@ -56,8 +53,10 @@ After editing a deployed CSS file directly, clear browser cache or change the fi
 
 ## Compatibility
 
-- Uses `assets.admin.styles` in `module.json`.
-- Expects `AdminPluginAssetManager::styles()` to inject active admin plugin styles.
+- Injects CSS through the plugin ServiceProvider into the admin layout
+  `styles` stack.
+- Does not use the public asset publisher, so installing/updating the default
+  admin theme does not require write access to `public/platform/plugins`.
 - Targets the current admin layout classes such as `z4-admin-bar`, `z4-admin-sidebar`, `z4-admin-link`, and standard Tailwind utility classes used by admin pages.
 - Avoids core Blade changes and avoids database-backed settings for v1.
 
