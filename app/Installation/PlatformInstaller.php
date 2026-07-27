@@ -65,7 +65,7 @@ final class PlatformInstaller
         Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
 
         User::query()->delete();
-        $user = User::query()->create([
+        $user = User::query()->forceCreate([
             'name' => Str::before($owner['email'], '@'),
             'email' => $owner['email'],
             'email_verified_at' => now(),

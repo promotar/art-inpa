@@ -2,6 +2,15 @@
 
 This file records completed project changes, reasons, impact, verification, and notes.
 
+## 2026-07-27 - Initial super-admin email verification
+
+- Fixed installer owner creation so `email_verified_at` is persisted despite
+  the User model mass-assignment allowlist.
+- Added a one-way migration that verifies only the oldest assigned
+  `super-admin` on existing installations when that account is still
+  unverified.
+- Users created after installation retain the normal email verification flow.
+
 ## 2026-07-27 - Coolify read-only environment installer repair
 
 - Fixed final installation failure when Coolify exposes `/app/.env` read-only.
