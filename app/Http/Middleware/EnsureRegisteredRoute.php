@@ -19,6 +19,10 @@ class EnsureRegisteredRoute
 
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->is('install') || $request->is('install/*')) {
+            return $next($request);
+        }
+
         $route = $request->route();
         $name = $route?->getName();
 

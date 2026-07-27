@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\ThemeBuilderController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Ai\AiChatController;
+use App\Http\Controllers\InstallationController;
 use App\Http\Controllers\ProfileController;
 use App\Platform\Core\Services\PluginOwnedPageGuard;
 use App\Platform\Core\Services\PluginRouteLoader;
@@ -19,6 +20,15 @@ use App\Platform\Core\Services\SettingsRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+
+Route::middleware('throttle:20,1')->prefix('install')->name('install.')->group(function (): void {
+    Route::get('/', [InstallationController::class, 'platform'])->name('platform');
+    Route::post('/platform', [InstallationController::class, 'storePlatform'])->name('platform.store');
+    Route::get('/database', [InstallationController::class, 'database'])->name('database');
+    Route::post('/database', [InstallationController::class, 'storeDatabase'])->name('database.store');
+    Route::get('/owner', [InstallationController::class, 'owner'])->name('owner');
+    Route::post('/finish', [InstallationController::class, 'finish'])->name('finish');
+});
 
 Route::get('/', function (SettingsRepository $settings) {
     $cacheBypassHeaders = [

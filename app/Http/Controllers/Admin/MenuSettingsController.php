@@ -20,7 +20,7 @@ class MenuSettingsController extends Controller
 {
     public function index(Request $request): View
     {
-        $this->ensureDefaultMenus();
+        $this->initializeDefaults();
 
         $activeLocation = in_array($request->query('location'), ['frontend', 'admin'], true)
             ? (string) $request->query('location')
@@ -429,7 +429,7 @@ class MenuSettingsController extends Controller
         return false;
     }
 
-    private function ensureDefaultMenus(): void
+    public function initializeDefaults(): void
     {
         $front = Menu::query()->firstOrCreate([
             'key' => 'platform.frontend',
@@ -469,7 +469,7 @@ class MenuSettingsController extends Controller
 
     private function menuFor(string $location): Menu
     {
-        $this->ensureDefaultMenus();
+        $this->initializeDefaults();
 
         return Menu::query()
             ->where('key', 'platform.'.$location)

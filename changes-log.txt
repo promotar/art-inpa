@@ -7260,3 +7260,25 @@ Rollback:
   pages, headers, and footers.
 - Rebuilt the canonical `modules/PageBuilder.zip` distribution with the new
   migration and manifest version.
+## 2026-07-27 - First-run clean installation wizard
+
+- Added a three-step `/install` workflow for platform name, logo and domain,
+  verified MySQL connection/destructive reset approval, and super-admin owner.
+- Added `INSTAAL_IS_ATIVE=0|1` as a direct `.env` installation gate.
+- Added `.env.installation` as the clean first-run environment template; it
+  contains only `INSTAAL_IS_ATIVE=0`.
+- Added global pre-application redirection while uninstalled and protected the
+  installer from normal route registry and permission middleware.
+- The final confirmed action runs `migrate:fresh --seed --force`, removes the
+  migration bootstrap account, creates the supplied verified owner, assigns
+  the complete `super-admin` role, initializes default menus, stores platform
+  settings, and changes the installation flag to `1`.
+- Changed no-environment session/cache fallbacks to filesystem drivers so the
+  installer can operate before database configuration.
+- Removed tracked compiled Blade output from `storage/framework/views` and
+  ignored runtime cache/session/view/log files so Windows caches cannot be
+  deployed into Linux containers.
+- Verified PHP syntax, HTTP 200 rendering for `/install`, and HTTP 302 gating
+  from `/dashboard` and incomplete later steps to `/install`.
+- `route:list` remains blocked by a pre-existing PageBuilder reference to the
+  missing `Modules\PageBuilder\Http\Controllers\PublicPageController`.

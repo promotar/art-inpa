@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnforceRoutePermission;
 use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsurePlatformInstalled;
 use App\Http\Middleware\EnsureRegisteredRoute;
 use App\Http\Middleware\EnsureStaffUser;
 use App\Http\Middleware\EnsureSuperAdmin;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(EnsurePlatformInstalled::class);
         $middleware->trustProxies(
             at: ['127.0.0.1', '::1', '10.10.0.2', '192.168.1.195'],
             headers: Request::HEADER_X_FORWARDED_FOR

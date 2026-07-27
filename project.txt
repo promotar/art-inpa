@@ -1869,3 +1869,19 @@ Current behavior:
   restores `admin-theme`.
 - `modules/admin-theme.zip` is the retained distributable archive for the
   default admin theme.
+## First-run installation wizard
+
+New deployments use `INSTAAL_IS_ATIVE` as the explicit installation gate.
+The clean `.env.installation` template contains only this flag and can be
+copied to `.env` for a first-run installation.
+`0` redirects all application traffic, except `/up`, to the three-step
+`/install` wizard. The wizard collects platform identity, validates a MySQL
+connection, requires an explicit destructive-data confirmation, and finally
+runs a fresh seeded migration before creating the verified super-admin owner.
+The completed installation stores platform identity in `platform_settings` and
+sets `INSTAAL_IS_ATIVE=1`.
+
+Changing the value back to `0` exposes the installer again, but never erases
+data until the database warning is accepted and the final installation action
+is submitted. Container deployments must persist the runtime `.env` file (or
+manage this flag through the deployment platform) across container recreation.
