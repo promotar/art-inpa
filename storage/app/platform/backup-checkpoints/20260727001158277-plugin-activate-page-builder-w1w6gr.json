@@ -1,0 +1,11 @@
+{
+    "operation_type": "plugin.activate",
+    "target_type": "plugin",
+    "target_slug": "page-builder",
+    "checkpoint_type": "step-checkpoint",
+    "metadata": {
+        "step": "menus_shown",
+        "checkpoint_reason": "Automatic checkpoint after successful step."
+    },
+    "created_at": "2026-07-27T00:11:58+00:00"
+}

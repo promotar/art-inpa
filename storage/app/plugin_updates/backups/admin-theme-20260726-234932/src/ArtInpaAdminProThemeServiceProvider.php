@@ -22,7 +22,6 @@ class ArtInpaAdminProThemeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->removeLegacyPluginRecord();
-        View::addNamespace('admin-theme', dirname(__DIR__).'/resources/views');
 
         View::composer(['layouts.app', 'components.page-builder-focus-layout'], function (): void {
             $css = $this->stylesheet();
@@ -33,9 +32,6 @@ class ArtInpaAdminProThemeServiceProvider extends ServiceProvider
 
             view()->startPush('styles');
             echo '<style data-plugin-admin-style="admin-theme">'.PHP_EOL.$css.PHP_EOL.'</style>';
-            echo '<style data-plugin-admin-settings="admin-theme">'.PHP_EOL
-                .$this->app->make(ThemeSettings::class)->css()
-                .PHP_EOL.'</style>';
             view()->stopPush();
         });
     }

@@ -1,7 +1,7 @@
 {
   "name": "Admin Theme",
   "slug": "admin-theme",
-  "version": "1.1.0",
+  "version": "1.0.2",
   "type": "theme",
   "theme": {
     "scope": "admin",
@@ -13,18 +13,6 @@
   "provider": "Modules\\ArtInpaAdminProTheme\\ArtInpaAdminProThemeServiceProvider",
   "provider_file": "src/ArtInpaAdminProThemeServiceProvider.php",
   "dependencies": [],
-  "routes": {
-    "admin": {
-      "file": "routes/admin.php",
-      "prefix": "",
-      "name": "",
-      "middleware": ["web", "auth", "staff"]
-    }
-  },
-  "settings": {
-    "label": "Theme settings",
-    "route": "admin.plugins.admin-theme.settings"
-  },
   "functions": {
     "admin-theme.assets.inject": {
       "description": "Inject the default admin theme stylesheet into the active admin dashboard layout."
