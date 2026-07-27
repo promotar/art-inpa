@@ -19,36 +19,51 @@ final class InstallationState
     /** @param array<string, string> $values */
     public function write(array $values): void
     {
-        $path = base_path('.env');
-        $content = File::exists($path) ? File::get($path) : '';
+        $this->writeFile(RuntimeEnvironment::path(), $values, true);
 
-        foreach ($values as $key => $value) {
-            $line = $key.'='.$this->quote($value);
-            $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
-            $content = preg_match($pattern, $content)
-                ? preg_replace($pattern, $line, $content)
-                : rtrim($content).PHP_EOL.$line.PHP_EOL;
+        $environmentPath = base_path('.env');
+        if (File::exists($environmentPath) && is_writable($environmentPath)) {
+            $this->writeFile($environmentPath, $values);
         }
-
-        File::put($path, ltrim($content));
     }
 
     private function value(string $key, string $default): string
     {
-        $path = base_path('.env');
-        if (! File::exists($path)) {
-            return $default;
+        foreach ([RuntimeEnvironment::path(), base_path('.env')] as $path) {
+            if (! File::exists($path)) {
+                continue;
+            }
+
+            if (preg_match('/^'.preg_quote($key, '/').'=(.*)$/m', File::get($path), $match) === 1) {
+                return trim(trim($match[1]), "\"'");
+            }
         }
 
-        if (preg_match('/^'.preg_quote($key, '/').'=(.*)$/m', File::get($path), $match) !== 1) {
-            return $default;
-        }
-
-        return trim(trim($match[1]), "\"'");
+        return $default;
     }
 
     private function quote(string $value): string
     {
         return '"'.str_replace(['\\', '"', "\n", "\r"], ['\\\\', '\\"', '', ''], $value).'"';
+    }
+
+    /** @param array<string, string> $values */
+    private function writeFile(string $path, array $values, bool $protect = false): void
+    {
+        File::ensureDirectoryExists(dirname($path));
+        $content = File::exists($path) ? File::get($path) : '';
+
+        foreach ($values as $key => $value) {
+            $line = $key.'='.$this->quote((string) $value);
+            $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
+            $content = preg_match($pattern, $content)
+                ? (string) preg_replace($pattern, $line, $content)
+                : rtrim($content).PHP_EOL.$line.PHP_EOL;
+        }
+
+        File::put($path, ltrim($content), true);
+        if ($protect) {
+            @chmod($path, 0600);
+        }
     }
 }

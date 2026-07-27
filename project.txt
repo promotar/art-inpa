@@ -1,5 +1,14 @@
 # خطة تنفيذ مشروع Art INPA النهائية
 
+## Coolify installer runtime environment - 2026-07-27
+
+- Immutable containers do not require write access to `/app/.env`.
+- Installer-generated values are stored in
+  `storage/app/platform/installation.env` and loaded before Laravel config.
+- The runtime file is owner-only (`0600`) and excluded from Git.
+- Persist `storage/app/platform` when installation state must survive container
+  replacement.
+
 ## Production Frontend Build Contract - 2026-07-26
 
 - `public/build` and `public/hot` are generated runtime artifacts and remain

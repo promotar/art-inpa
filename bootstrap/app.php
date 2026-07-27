@@ -6,10 +6,13 @@ use App\Http\Middleware\EnsurePlatformInstalled;
 use App\Http\Middleware\EnsureRegisteredRoute;
 use App\Http\Middleware\EnsureStaffUser;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Installation\RuntimeEnvironment;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+
+RuntimeEnvironment::load();
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(

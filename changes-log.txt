@@ -2,6 +2,15 @@
 
 This file records completed project changes, reasons, impact, verification, and notes.
 
+## 2026-07-27 - Coolify read-only environment installer repair
+
+- Fixed final installation failure when Coolify exposes `/app/.env` read-only.
+- Added an early runtime environment loader backed by writable
+  `storage/app/platform/installation.env`.
+- Installer values always use the protected runtime file and mirror to `.env`
+  only when that file is writable.
+- Runtime credentials use mode `0600` and are excluded from Git.
+
 ## 2026-07-27 - Single-container Laravel runtime and Core 2.5.2
 
 - Replaced the five-service local runtime (`app`, `web`, `queue`, `scheduler`,

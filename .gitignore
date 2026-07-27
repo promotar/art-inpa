@@ -26,6 +26,7 @@ docker/secrets/
 /storage/framework/sessions/*
 /storage/framework/views/*
 /storage/logs/*
+/storage/app/platform/installation.env
 /storage/pail
 /vendor
 Homestead.json
