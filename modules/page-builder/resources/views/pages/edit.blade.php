@@ -2,6 +2,7 @@
     <x-slot name="styles">
         <link rel="stylesheet" href="{{ asset('vendor/front-builder/grapesjs/grapes.min.css') }}">
         <link rel="stylesheet" href="{{ asset('vendor/front-builder/page-builder/page-builder.css') }}?v=20260725-unified-page-builder">
+        <link rel="stylesheet" href="{{ route('admin.pages.editor-ui-css') }}?v=20260728-editor-layout">
     </x-slot>
 
     <form
@@ -21,10 +22,46 @@
         <input type="hidden" name="html" id="page_html">
         <input type="hidden" name="css" id="page_css">
 
+        <nav class="page-builder-site-header" aria-label="Page Builder navigation">
+            <a href="{{ url('/') }}" class="page-builder-site-brand" aria-label="INPA home">
+                <x-application-logo class="page-builder-site-brand-logo" />
+                <span>
+                    <strong>I.N.P.A</strong>
+                    <small>International Network for Plastic Art</small>
+                </span>
+            </a>
+
+            <div class="page-builder-site-links">
+                <a href="{{ url('/') }}">Home</a>
+                <a href="{{ url('/categories') }}" class="page-builder-site-category">
+                    Category
+                    <small>Hot</small>
+                </a>
+                <a href="{{ url('/contact') }}">Contact Us</a>
+                <a href="{{ url('/about') }}">About</a>
+                <a href="{{ url('/enrollment') }}">Enrollment form</a>
+                <a href="{{ url('/exhibition') }}">exhibition</a>
+                <a href="{{ url('/learn') }}">learn</a>
+                <a href="{{ url('/social') }}">Social</a>
+            </div>
+
+            <div class="page-builder-site-actions">
+                <a href="{{ url('/?lang=en') }}" class="page-builder-site-language">English</a>
+                <a href="{{ url('/login') }}" class="page-builder-site-login">Login / Sign Up</a>
+                <a href="{{ url('/notifications') }}" class="page-builder-site-notifications">Notifications</a>
+            </div>
+        </nav>
+
         <header class="page-builder-header">
             <div class="page-builder-header-title">
-                <span>{{ ucfirst($page->content_type ?? 'page') }} Builder</span>
-                <h1>{{ $page->title }}</h1>
+                <span>Pages <b aria-hidden="true">›</b> {{ ucfirst($page->content_type ?? 'page') }}</span>
+                <div class="page-builder-title-row">
+                    <h1>{{ $page->title }}</h1>
+                    <span class="page-builder-page-state page-builder-page-state--{{ $page->status === 'published' ? 'published' : 'draft' }}">
+                        {{ ucfirst($page->status) }}
+                    </span>
+                    <small>Last saved {{ $page->updated_at ? \Illuminate\Support\Carbon::parse($page->updated_at)->diffForHumans() : 'just now' }}</small>
+                </div>
             </div>
 
             <div class="page-builder-header-actions">
@@ -37,11 +74,6 @@
         </header>
 
         <section class="page-builder-statusbar" aria-label="Page status">
-            <div class="page-builder-statusbar-path">
-                <span>Page Path:</span>
-                <strong>/pages/{{ $page->slug }}</strong>
-            </div>
-
             @if (session('status'))
                 <div class="page-builder-alert page-builder-alert--success">{{ session('status') }}</div>
             @endif
@@ -51,18 +83,6 @@
             @endif
 
             <div class="page-builder-alert page-builder-alert--status" data-builder-save-status hidden></div>
-
-            <div class="page-builder-statusbar-actions">
-                <span>Public URL:</span>
-                <a href="{{ $publicUrl }}" target="_blank" class="page-builder-public-url">{{ $publicUrl }}</a>
-                <span class="page-builder-statusbar-state">
-                    <span>Status:</span>
-                    <strong>
-                        <span class="page-builder-dot page-builder-dot--{{ old('status', $page->status) === 'published' ? 'published' : 'draft' }}"></span>
-                        {{ ucfirst(old('status', $page->status)) }}
-                    </strong>
-                </span>
-            </div>
         </section>
 
         <aside class="page-builder-settings-drawer" data-page-settings-drawer hidden aria-label="Page settings">
@@ -243,8 +263,8 @@
         <section class="page-builder-workspace">
             <aside class="page-builder-inspector page-builder-left-panel" aria-label="Builder inspector">
                 <div class="page-builder-inspector-header">
-                    <span>Builder</span>
-                    <strong data-builder-sidebar-title>Elements</strong>
+                    <strong>Builder</strong>
+                    <span data-builder-sidebar-title>Elements</span>
                 </div>
                 <div class="page-builder-inspector-body" data-builder-inspector-host></div>
             </aside>

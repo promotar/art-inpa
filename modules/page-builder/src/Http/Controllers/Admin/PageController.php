@@ -27,6 +27,18 @@ class PageController extends Controller
 {
     private const BUILDER_SYNC_META_KEY = '_z4rank_builder_sync';
 
+    public function editorUiCss(): Response
+    {
+        $stylesheet = dirname(__DIR__, 3).'/resources/css/editor-ui.css';
+
+        abort_unless(is_file($stylesheet), 404);
+
+        return response((string) file_get_contents($stylesheet), 200, [
+            'Content-Type' => 'text/css; charset=UTF-8',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
