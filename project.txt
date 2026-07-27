@@ -6,6 +6,8 @@
 - Installer-generated values are stored in
   `storage/app/platform/installation.env` and loaded before Laravel config.
 - The runtime file is owner-only (`0600`) and excluded from Git.
+- Bootstrap creates required cache, session, compiled-view, log, and platform
+  runtime directories before Laravel initializes file-backed services.
 - Persist `storage/app/platform` when installation state must survive container
   replacement.
 

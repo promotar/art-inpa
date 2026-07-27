@@ -13,6 +13,8 @@ final class RuntimeEnvironment
 
     public static function load(): void
     {
+        self::ensureRuntimeDirectories();
+
         $path = self::path();
         if (! is_file($path) || ! is_readable($path)) {
             return;
@@ -33,6 +35,25 @@ final class RuntimeEnvironment
             putenv($key.'='.$value);
             $_ENV[$key] = $value;
             $_SERVER[$key] = $value;
+        }
+    }
+
+    private static function ensureRuntimeDirectories(): void
+    {
+        $basePath = dirname(__DIR__, 2);
+        $directories = [
+            $basePath.'/bootstrap/cache',
+            $basePath.'/storage/app/platform',
+            $basePath.'/storage/framework/cache/data',
+            $basePath.'/storage/framework/sessions',
+            $basePath.'/storage/framework/views',
+            $basePath.'/storage/logs',
+        ];
+
+        foreach ($directories as $directory) {
+            if (! is_dir($directory)) {
+                @mkdir($directory, 0775, true);
+            }
         }
     }
 }

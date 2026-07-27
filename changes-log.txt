@@ -10,6 +10,8 @@ This file records completed project changes, reasons, impact, verification, and 
 - Installer values always use the protected runtime file and mirror to `.env`
   only when that file is writable.
 - Runtime credentials use mode `0600` and are excluded from Git.
+- Bootstrap now creates missing Laravel runtime directories before file session
+  middleware starts, preventing fresh Coolify images from returning HTTP 500.
 
 ## 2026-07-27 - Single-container Laravel runtime and Core 2.5.2
 
