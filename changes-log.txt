@@ -7302,3 +7302,25 @@ Rollback:
   from `/dashboard` and incomplete later steps to `/install`.
 - `route:list` remains blocked by a pre-existing PageBuilder reference to the
   missing `Modules\PageBuilder\Http\Controllers\PublicPageController`.
+
+## 2026-07-28 - First-run APP_KEY bootstrap repair
+
+- Root cause: the installation wizard uses encrypted file sessions before its
+  final step writes `APP_KEY`; a clean environment (or a container created
+  while `APP_KEY` was blank) therefore failed at `/install` with
+  `MissingAppKeyException`.
+- Added a Docker entrypoint bootstrap that generates a cryptographically random
+  Laravel key only when the process has no non-empty `APP_KEY`, exports it for
+  the current Apache process, and persists it with an exclusive lock to the
+  bind-mounted `.env` for stable sessions across container recreation.
+- Preserved every explicitly configured key and added deployment contract
+  assertions for generation, export, and persistence.
+- Recovery point created before the change:
+  `backups/installer-app-key-20260728-033241`.
+- Persisted `ART_INPA_HTTP_PORT=8019` in the local owner-only `.env` so Compose
+  retains the verified installer URL across rebuilds and container recreation.
+- Rebuilt the application image and force-recreated the container. Final
+  runtime verification: container healthy on `127.0.0.1:8019`, process
+  `APP_KEY` present, `/install` returned HTTP 200 with the Platform identity
+  form, and the response did not contain `MissingAppKeyException`.
+- `DeploymentAssetBuildContractTest` passed: 6 tests / 69 assertions.

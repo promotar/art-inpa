@@ -42,6 +42,10 @@ class DeploymentAssetBuildContractTest extends TestCase
         self::assertStringContainsString('/opt/art-inpa/public/build/manifest.json', $entrypoint);
         self::assertStringContainsString('cp -R /opt/art-inpa/public/build/. public/build/', $entrypoint);
         self::assertStringContainsString('The deployment image is incomplete.', $entrypoint);
+        self::assertStringContainsString('if [ -z "${APP_KEY:-}" ]; then', $entrypoint);
+        self::assertStringContainsString('base64_encode(random_bytes(32))', $entrypoint);
+        self::assertStringContainsString('export APP_KEY', $entrypoint);
+        self::assertStringContainsString('file_put_contents($path, ltrim($content), LOCK_EX)', $entrypoint);
         self::assertStringNotContainsString('npm install', $entrypoint);
         self::assertStringNotContainsString('npm run build', $entrypoint);
         self::assertStringNotContainsString('apt-get install', $entrypoint);

@@ -1896,3 +1896,7 @@ Changing the value back to `0` exposes the installer again, but never erases
 data until the database warning is accepted and the final installation action
 is submitted. Container deployments must persist the runtime `.env` file (or
 manage this flag through the deployment platform) across container recreation.
+The Docker entrypoint bootstraps and persists a cryptographically random
+`APP_KEY` when a clean first-run environment does not provide one. Laravel
+therefore has stable session encryption before the installation wizard starts;
+an explicitly configured non-empty key is always preserved.
