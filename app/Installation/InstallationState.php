@@ -8,12 +8,18 @@ final class InstallationState
 {
     public function installed(): bool
     {
-        return $this->value('INSTAAL_IS_ATIVE', '0') === '1';
+        $active = $this->value('INSTAAL_IS_ACTIVE', '');
+
+        return ($active !== '' ? $active : $this->value('INSTAAL_IS_ATIVE', '0')) === '1';
     }
 
     public function setInstalled(bool $installed): void
     {
-        $this->write(['INSTAAL_IS_ATIVE' => $installed ? '1' : '0']);
+        $value = $installed ? '1' : '0';
+        $this->write([
+            'INSTAAL_IS_ACTIVE' => $value,
+            'INSTAAL_IS_ATIVE' => $value,
+        ]);
     }
 
     /** @param array<string, string> $values */

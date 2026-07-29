@@ -108,6 +108,57 @@ if [ ! -s public/build/manifest.json ]; then
     exit 1
 fi
 
+INSTALLATION_FLAG="${INSTAAL_IS_ACTIVE:-${INSTAAL_IS_ATIVE:-0}}"
+
+if [ -z "${APP_KEY:-}" ] && [ -r storage/app/platform/installation.env ]; then
+    APP_KEY="$(php -r '
+        $content = (string) file_get_contents("/var/www/html/storage/app/platform/installation.env");
+        if (preg_match("/^APP_KEY=(.*)$/m", $content, $match) === 1) {
+            echo trim(trim($match[1]), "\"\x27");
+        }
+    ')"
+
+    if [ -n "$APP_KEY" ]; then
+        export APP_KEY
+    fi
+fi
+
+if [ -z "${APP_KEY:-}" ] && [ "$INSTALLATION_FLAG" != "1" ]; then
+    echo ">>> Generating the first-run Laravel application key..."
+    APP_KEY="$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
+    export APP_KEY
+
+    php -r '
+        $key = getenv("APP_KEY");
+        $write = static function (string $path, bool $protect = false) use ($key): void {
+            $content = is_file($path) ? (string) file_get_contents($path) : "";
+            $line = "APP_KEY=\"".str_replace(["\\", "\"", "\n", "\r"], ["\\\\", "\\\"", "", ""], $key)."\"";
+            $pattern = "/^APP_KEY=.*$/m";
+            $content = preg_match($pattern, $content)
+                ? (string) preg_replace($pattern, $line, $content)
+                : rtrim($content).PHP_EOL.$line.PHP_EOL;
+            file_put_contents($path, ltrim($content), LOCK_EX);
+            if ($protect) {
+                @chmod($path, 0640);
+            }
+        };
+
+        $runtime = "/var/www/html/storage/app/platform/installation.env";
+        $write($runtime, true);
+
+        $environment = "/var/www/html/.env";
+        if (is_file($environment) && is_writable($environment)) {
+            $write($environment);
+        }
+    '
+fi
+
+if [ -z "${APP_KEY:-}" ] && [ "$INSTALLATION_FLAG" = "1" ]; then
+    echo "ERROR: The platform is marked as installed but APP_KEY is missing." >&2
+    echo "Restore the original persistent APP_KEY; generating a replacement would invalidate encrypted data." >&2
+    exit 1
+fi
+
 php artisan package:discover --ansi >/dev/null
 
 exec "$@"

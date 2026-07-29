@@ -4,7 +4,11 @@ use Illuminate\Support\Facades\Route;
 use Modules\PageBuilder\Http\Controllers\Admin\PageController;
 
 Route::middleware('permission:pages.manage')->group(function (): void {
+    Route::get('/admin/theme-builder', [PageController::class, 'themeBuilder'])->name('admin.theme-builder.index');
+    Route::put('/admin/theme-builder', [PageController::class, 'updateThemeBuilder'])->name('admin.theme-builder.update');
     Route::get('/admin/pages/editor-ui.css', [PageController::class, 'editorUiCss'])->name('admin.pages.editor-ui-css');
+    Route::get('/admin/pages/theme-builder', [PageController::class, 'themeBuilder'])->name('admin.pages.theme-builder');
+    Route::put('/admin/pages/theme-builder', [PageController::class, 'updateThemeBuilder'])->name('admin.pages.theme-builder.update');
     Route::get('/admin/pages', [PageController::class, 'index'])->name('admin.pages.index');
     Route::get('/admin/pages/{page}/edit', [PageController::class, 'edit'])->name('admin.pages.edit');
     Route::get('/admin/pages/{page}/preview', [PageController::class, 'preview'])->name('admin.pages.preview');

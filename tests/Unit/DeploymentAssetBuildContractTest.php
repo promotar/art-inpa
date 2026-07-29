@@ -27,6 +27,11 @@ class DeploymentAssetBuildContractTest extends TestCase
         self::assertStringContainsString('test -s public/build/manifest.json', $dockerfile);
         self::assertStringContainsString('a2enmod rewrite headers expires', $dockerfile);
         self::assertStringContainsString('a2enconf art-inpa-servername', $dockerfile);
+        self::assertStringContainsString('COPY . /var/www/html', $dockerfile);
+        self::assertStringContainsString('composer install', $dockerfile);
+        self::assertStringContainsString('--no-dev', $dockerfile);
+        self::assertStringContainsString('--no-scripts', $dockerfile);
+        self::assertStringContainsString('rm -f bootstrap/cache/*.php', $dockerfile);
         self::assertStringContainsString('CMD ["apache2-foreground"]', $dockerfile);
         self::assertStringContainsString(
             'COPY --from=vite-assets /build/public/build /opt/art-inpa/public/build',
@@ -42,10 +47,14 @@ class DeploymentAssetBuildContractTest extends TestCase
         self::assertStringContainsString('/opt/art-inpa/public/build/manifest.json', $entrypoint);
         self::assertStringContainsString('cp -R /opt/art-inpa/public/build/. public/build/', $entrypoint);
         self::assertStringContainsString('The deployment image is incomplete.', $entrypoint);
-        self::assertStringContainsString('if [ -z "${APP_KEY:-}" ]; then', $entrypoint);
+        self::assertStringContainsString('if [ -z "${APP_KEY:-}" ] && [ "$INSTALLATION_FLAG" != "1" ]; then', $entrypoint);
         self::assertStringContainsString('base64_encode(random_bytes(32))', $entrypoint);
         self::assertStringContainsString('export APP_KEY', $entrypoint);
         self::assertStringContainsString('file_put_contents($path, ltrim($content), LOCK_EX)', $entrypoint);
+        self::assertStringContainsString('INSTAAL_IS_ACTIVE', $entrypoint);
+        self::assertStringContainsString('INSTAAL_IS_ATIVE', $entrypoint);
+        self::assertStringContainsString('storage/app/platform/installation.env', $entrypoint);
+        self::assertStringContainsString('The platform is marked as installed but APP_KEY is missing.', $entrypoint);
         self::assertStringNotContainsString('npm install', $entrypoint);
         self::assertStringNotContainsString('npm run build', $entrypoint);
         self::assertStringNotContainsString('apt-get install', $entrypoint);
@@ -57,6 +66,7 @@ class DeploymentAssetBuildContractTest extends TestCase
 
         self::assertMatchesRegularExpression('/^public\/build$/m', $dockerignore);
         self::assertMatchesRegularExpression('/^public\/hot$/m', $dockerignore);
+        self::assertMatchesRegularExpression('/^storage\/app\/platform$/m', $dockerignore);
     }
 
     public function test_runtime_never_redirects_the_public_root_to_public_html(): void

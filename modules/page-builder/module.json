@@ -1,11 +1,11 @@
 {
   "name": "Page Builder",
   "slug": "page-builder",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "type": "feature",
   "core": true,
   "platform_version": ">=2.5.0 <3.0.0",
-  "description": "Protected visual page builder combining the platform page system with Front Builder hierarchy, menu and publishing capabilities.",
+  "description": "Unified visual Page Builder for pages, headers, footers, bodies and reusable blocks, with Theme Builder selecting active frontend compositions by reference.",
   "author": "Art INPA",
   "provider": "Modules\\PageBuilder\\PageBuilderServiceProvider",
   "provider_file": "src/PageBuilderServiceProvider.php",

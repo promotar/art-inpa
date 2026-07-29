@@ -7324,3 +7324,32 @@ Rollback:
   `APP_KEY` present, `/install` returned HTTP 200 with the Platform identity
   form, and the response did not contain `MissingAppKeyException`.
 - `DeploymentAssetBuildContractTest` passed: 6 tests / 69 assertions.
+
+## 2026-07-29 - Self-contained image and installer APP_KEY lifecycle
+
+- Fixed clean container images failing at `/install` with
+  `Illuminate\Encryption\MissingAppKeyException`.
+- Added an early Laravel fallback that generates a key only for an uninstalled
+  platform, exports it to the current process, and persists it under an
+  exclusive lock.
+- Updated the Docker entrypoint to restore a persisted key before Laravel
+  starts, generate one only when `INSTAAL_IS_ACTIVE=0`, and refuse to replace a
+  missing key when `INSTAAL_IS_ACTIVE=1`.
+- Made `INSTAAL_IS_ACTIVE` canonical while retaining the historical
+  `INSTAAL_IS_ATIVE` alias. Installation completion writes both flags.
+- Persisted the runtime key in
+  `storage/app/platform/installation.env` with mode `640` and the `www-data`
+  group so Apache can read it without making it public.
+- Excluded `storage/app/platform` from the Docker build context to prevent a
+  local runtime key or installation state from entering an image.
+- Made the PHP image self-contained by copying application source, installing
+  production Composer dependencies, removing stale framework cache before
+  dependency discovery, and retaining the verified Vite artifact.
+- Recovery point:
+  `backups/installer-app-key-core-20260729-164500`.
+- Verification: a fresh image and empty named storage volume generated the key
+  once; `/install` returned HTTP 200 without the missing-key exception; the key
+  hash remained unchanged after container restart; installed-without-key
+  startup exited with code 1 and did not generate a replacement.
+- PHP syntax and shell syntax checks passed.
+  `DeploymentAssetBuildContractTest` passed with 6 tests / 79 assertions.

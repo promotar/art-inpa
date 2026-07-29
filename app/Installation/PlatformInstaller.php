@@ -56,6 +56,7 @@ final class PlatformInstaller
             'SESSION_DRIVER' => 'file',
             'CACHE_STORE' => 'file',
             'QUEUE_CONNECTION' => 'sync',
+            'INSTAAL_IS_ACTIVE' => '0',
             'INSTAAL_IS_ATIVE' => '0',
         ]);
 

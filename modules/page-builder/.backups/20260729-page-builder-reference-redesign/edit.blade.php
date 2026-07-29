@@ -2,7 +2,7 @@
     <x-slot name="styles">
         <link rel="stylesheet" href="{{ asset('vendor/front-builder/grapesjs/grapes.min.css') }}">
         <link rel="stylesheet" href="{{ asset('vendor/front-builder/page-builder/page-builder.css') }}?v=20260725-unified-page-builder">
-        <link rel="stylesheet" href="{{ route('admin.pages.editor-ui-css') }}?v=20260729-theme-builder-layout-3">
+        <link rel="stylesheet" href="{{ route('admin.pages.editor-ui-css') }}?v=20260728-editor-layout">
     </x-slot>
 
     <form
@@ -22,15 +22,39 @@
         <input type="hidden" name="html" id="page_html">
         <input type="hidden" name="css" id="page_css">
 
+        <nav class="page-builder-site-header" aria-label="Page Builder navigation">
+            <a href="{{ url('/') }}" class="page-builder-site-brand" aria-label="INPA home">
+                <x-application-logo class="page-builder-site-brand-logo" />
+                <span>
+                    <strong>I.N.P.A</strong>
+                    <small>International Network for Plastic Art</small>
+                </span>
+            </a>
+
+            <div class="page-builder-site-links">
+                <a href="{{ url('/') }}">Home</a>
+                <a href="{{ url('/categories') }}" class="page-builder-site-category">
+                    Category
+                    <small>Hot</small>
+                </a>
+                <a href="{{ url('/contact') }}">Contact Us</a>
+                <a href="{{ url('/about') }}">About</a>
+                <a href="{{ url('/enrollment') }}">Enrollment form</a>
+                <a href="{{ url('/exhibition') }}">exhibition</a>
+                <a href="{{ url('/learn') }}">learn</a>
+                <a href="{{ url('/social') }}">Social</a>
+            </div>
+
+            <div class="page-builder-site-actions">
+                <a href="{{ url('/?lang=en') }}" class="page-builder-site-language">English</a>
+                <a href="{{ url('/login') }}" class="page-builder-site-login">Login / Sign Up</a>
+                <a href="{{ url('/notifications') }}" class="page-builder-site-notifications">Notifications</a>
+            </div>
+        </nav>
+
         <header class="page-builder-header">
             <div class="page-builder-header-title">
-                <span>
-                    <a href="{{ route('admin.pages.index') }}">Page Builder</a>
-                    <b aria-hidden="true">›</b>
-                    {{ ucfirst($page->content_type ?? 'page') }} Templates
-                    <b aria-hidden="true">›</b>
-                    <strong>{{ $page->title }}</strong>
-                </span>
+                <span>Pages <b aria-hidden="true">›</b> {{ ucfirst($page->content_type ?? 'page') }}</span>
                 <div class="page-builder-title-row">
                     <h1>{{ $page->title }}</h1>
                     <span class="page-builder-page-state page-builder-page-state--{{ $page->status === 'published' ? 'published' : 'draft' }}">
@@ -41,13 +65,11 @@
             </div>
 
             <div class="page-builder-header-actions">
-                <a href="{{ route('admin.pages.index') }}" class="page-builder-action page-builder-action--muted">All Pages</a>
+                <a href="{{ route('admin.pages.index') }}" class="page-builder-action page-builder-action--muted">Pages</a>
                 <a href="{{ $previewUrl }}" target="_blank" class="page-builder-action page-builder-action--muted">Preview</a>
-                <button type="button" class="page-builder-action page-builder-action--ghost" data-page-settings-toggle>Template Settings</button>
-                <div class="page-builder-save-group">
-                    <button type="submit" class="page-builder-action page-builder-action--primary">Save</button>
-                    <button type="button" class="page-builder-action page-builder-action--primary page-builder-action--publish" data-builder-publish>Publish</button>
-                </div>
+                <button type="button" class="page-builder-action page-builder-action--ghost" data-page-settings-toggle>Page Settings</button>
+                <button type="button" class="page-builder-action page-builder-action--primary" data-builder-publish>Publish</button>
+                <button type="submit" class="page-builder-action page-builder-action--primary">Save</button>
             </div>
         </header>
 
@@ -231,51 +253,25 @@
 
         @unless ($simpleModeEnabled)
         <nav class="page-builder-toolbar page-builder-toolbar--devices-only" aria-label="Builder device tools">
-            <div class="page-builder-toolbar-label">
-                <strong>Page Builder</strong>
-                <span>Visual editing workspace</span>
-            </div>
             <div class="page-builder-toolbar-group page-builder-toolbar-group--devices">
                 <button type="button" data-builder-device="Desktop" class="is-active">Desktop</button>
                 <button type="button" data-builder-device="Tablet">Tablet</button>
                 <button type="button" data-builder-device="Mobile portrait">Mobile</button>
-            </div>
-            <div class="page-builder-toolbar-group page-builder-toolbar-group--history">
-                <button type="button" data-builder-undo disabled>Undo</button>
-                <button type="button" data-builder-redo disabled>Redo</button>
             </div>
         </nav>
 
         <section class="page-builder-workspace">
             <aside class="page-builder-inspector page-builder-left-panel" aria-label="Builder inspector">
                 <div class="page-builder-inspector-header">
-                    <strong>Elements</strong>
+                    <strong>Builder</strong>
                     <span data-builder-sidebar-title>Elements</span>
                 </div>
-                <label class="page-builder-element-search">
-                    <span class="sr-only">Search elements</span>
-                    <input type="search" data-builder-element-search placeholder="Search elements..." autocomplete="off">
-                </label>
                 <div class="page-builder-inspector-body" data-builder-inspector-host></div>
-                <p class="page-builder-drag-hint">Drag and drop elements onto the canvas to build your page.</p>
             </aside>
 
             <div class="page-builder-canvas">
                 <div id="gjs"></div>
             </div>
-
-            <aside class="page-builder-properties" aria-label="Element settings">
-                <div class="page-builder-properties-tabs" role="tablist" aria-label="Element inspector views">
-                    <button type="button" class="is-active" data-properties-view="settings" role="tab" aria-selected="true">Settings</button>
-                    <button type="button" data-properties-view="style" role="tab" aria-selected="false">Style</button>
-                </div>
-                <div class="page-builder-properties-body" data-builder-properties-host>
-                    <div class="page-builder-properties-empty" data-builder-properties-empty>
-                        <strong>No element selected</strong>
-                        <span>Select an element on the canvas to edit its settings and style.</span>
-                    </div>
-                </div>
-            </aside>
         </section>
         @endunless
     </form>
@@ -326,107 +322,4 @@
     </script>
     <script src="{{ asset('vendor/front-builder/grapesjs/grapes.min.js') }}"></script>
     <script src="{{ asset('vendor/front-builder/page-builder/page-builder.js') }}?v=20260725-unified-page-builder"></script>
-    @unless ($simpleModeEnabled)
-        <script>
-            (() => {
-                const propertiesHost = document.querySelector('[data-builder-properties-host]');
-                const propertiesEmpty = document.querySelector('[data-builder-properties-empty]');
-                const searchInput = document.querySelector('[data-builder-element-search]');
-                const undoButton = document.querySelector('[data-builder-undo]');
-                const redoButton = document.querySelector('[data-builder-redo]');
-                const propertyTabs = [...document.querySelectorAll('[data-properties-view]')];
-                let editor = null;
-                let settingsPanel = null;
-
-                const syncSettingsPanel = () => {
-                    const panel = document.querySelector('.pb-schema-settings-panel');
-
-                    if (!panel || !propertiesHost) {
-                        return;
-                    }
-
-                    settingsPanel = panel;
-
-                    if (panel.parentElement !== propertiesHost) {
-                        propertiesHost.appendChild(panel);
-                    }
-
-                    panel.hidden = false;
-                    panel.removeAttribute('hidden');
-                    propertiesEmpty?.toggleAttribute('hidden', Boolean(editor?.getSelected()));
-                    panel.classList.toggle('is-empty', !editor?.getSelected());
-                };
-
-                const syncHistory = () => {
-                    if (!editor) {
-                        return;
-                    }
-
-                    const commands = editor.UndoManager;
-                    undoButton.disabled = !commands.hasUndo();
-                    redoButton.disabled = !commands.hasRedo();
-                };
-
-                const filterBlocks = value => {
-                    const term = value.trim().toLowerCase();
-
-                    document.querySelectorAll('.gjs-block').forEach(block => {
-                        const label = block.textContent?.trim().toLowerCase() || '';
-                        block.hidden = term !== '' && !label.includes(term);
-                    });
-
-                    document.querySelectorAll('.gjs-block-category').forEach(category => {
-                        const visibleBlocks = category.querySelectorAll('.gjs-block:not([hidden])').length;
-                        category.classList.toggle('is-search-empty', visibleBlocks === 0);
-                    });
-                };
-
-                const selectPropertiesView = view => {
-                    propertyTabs.forEach(tab => {
-                        const active = tab.dataset.propertiesView === view;
-                        tab.classList.toggle('is-active', active);
-                        tab.setAttribute('aria-selected', active ? 'true' : 'false');
-                    });
-
-                    if (!settingsPanel) {
-                        return;
-                    }
-
-                    settingsPanel.dataset.propertiesView = view;
-                    const schemaTabs = [...settingsPanel.querySelectorAll('.pb-schema-tabs button')];
-                    const schemaView = view === 'settings' ? 'general' : view;
-                    const matchingTab = schemaTabs.find(tab => (tab.textContent || '').trim().toLowerCase() === schemaView);
-                    matchingTab?.click();
-                };
-
-                const connect = () => {
-                    editor = window.__ArtInpaPageBuilderPerf?.editor || null;
-
-                    if (!editor) {
-                        window.setTimeout(connect, 50);
-                        return;
-                    }
-
-                    syncSettingsPanel();
-                    syncHistory();
-                    editor.on('component:selected component:deselected update undo redo', () => {
-                        window.setTimeout(syncSettingsPanel, 0);
-                        syncHistory();
-                    });
-                    editor.on('load', syncSettingsPanel);
-                };
-
-                new MutationObserver(syncSettingsPanel).observe(
-                    document.querySelector('[data-builder-inspector-host]'),
-                    { childList: true, subtree: true }
-                );
-
-                searchInput?.addEventListener('input', event => filterBlocks(event.currentTarget.value));
-                undoButton?.addEventListener('click', () => editor?.UndoManager.undo());
-                redoButton?.addEventListener('click', () => editor?.UndoManager.redo());
-                propertyTabs.forEach(tab => tab.addEventListener('click', () => selectPropertiesView(tab.dataset.propertiesView)));
-                connect();
-            })();
-        </script>
-    @endunless
 </x-page-builder-focus-layout>

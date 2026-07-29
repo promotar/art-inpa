@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 {{-- Public rendering is owned by the protected Page Builder plugin. --}}
 @php
-    $pageBuilderRender = app(\App\Platform\Core\PageBuilder\PageBuilderRenderService::class);
+    $pageBuilderRender = app(\Modules\PageBuilder\ThemeCompositionService::class);
     $pageBuilderView = $pageBuilderRender->pageViewData($page, (bool) ($isPreview ?? false));
     extract($pageBuilderView, EXTR_SKIP);
     $siteLanguage = ($platformSettings['general.site_language'] ?? 'ar') === 'en' ? 'en' : 'ar';

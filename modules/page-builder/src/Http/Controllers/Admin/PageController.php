@@ -29,7 +29,7 @@ class PageController extends Controller
 
     public function editorUiCss(): Response
     {
-        $stylesheet = dirname(__DIR__, 3).'/resources/css/editor-ui.css';
+        $stylesheet = dirname(__DIR__, 4).'/resources/css/editor-ui.css';
 
         abort_unless(is_file($stylesheet), 404);
 
@@ -63,6 +63,67 @@ class PageController extends Controller
                 ->get(),
             'search' => $search,
         ]);
+    }
+
+    public function themeBuilder(): View
+    {
+        $selection = Schema::hasTable('page_builder_theme_settings')
+            ? DB::table('page_builder_theme_settings')->where('id', 1)->first()
+            : null;
+
+        return view('page-builder::pages.theme-builder', [
+            'selection' => $selection,
+            'headers' => $this->publishedDesigns('header'),
+            'bodies' => $this->publishedDesigns('page'),
+            'footers' => $this->publishedDesigns('footer'),
+        ]);
+    }
+
+    public function updateThemeBuilder(Request $request, OperationLogger $operations): RedirectResponse
+    {
+        abort_unless(Schema::hasTable('page_builder_theme_settings'), 503, 'Theme Builder database migration is pending.');
+
+        $data = $request->validate([
+            'header_page_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('platform_pages', 'id')
+                    ->where(fn ($query) => $query->where('content_type', 'header')->where('status', 'published')),
+            ],
+            'body_page_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('platform_pages', 'id')
+                    ->where(fn ($query) => $query->where('content_type', 'page')->where('status', 'published')),
+            ],
+            'footer_page_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('platform_pages', 'id')
+                    ->where(fn ($query) => $query->where('content_type', 'footer')->where('status', 'published')),
+            ],
+        ]);
+
+        $values = [
+            'header_page_id' => $data['header_page_id'] ?? null,
+            'body_page_id' => $data['body_page_id'] ?? null,
+            'footer_page_id' => $data['footer_page_id'] ?? null,
+            'updated_at' => now(),
+        ];
+
+        $selectionExists = DB::table('page_builder_theme_settings')->where('id', 1)->exists();
+
+        DB::table('page_builder_theme_settings')->updateOrInsert(
+            ['id' => 1],
+            $values + ($selectionExists ? [] : ['created_at' => now()]),
+        );
+
+        $operation = $operations->start('admin.pages.theme-builder.update', 'page-builder-theme', '1', $values, $request->user()?->id);
+        $operations->success($operation, 'Theme Builder frontend composition updated.');
+
+        return redirect()
+            ->route('admin.theme-builder.index')
+            ->with('status', 'Theme layout saved. The frontend now uses the selected Page Builder designs.');
     }
 
     public function store(Request $request, OperationLogger $operations): RedirectResponse
@@ -1068,5 +1129,15 @@ class PageController extends Controller
             ->pluck('category')
             ->unique()
             ->values();
+    }
+
+    private function publishedDesigns(string $type)
+    {
+        return DB::table('platform_pages')
+            ->where('content_type', $type)
+            ->where('status', 'published')
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->get(['id', 'title', 'slug', 'updated_at']);
     }
 }

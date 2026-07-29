@@ -51,9 +51,17 @@ COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-art-inpa.ini
 COPY docker/apache-servername.conf /etc/apache2/conf-available/art-inpa-servername.conf
 COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/php/entrypoint.sh /usr/local/bin/art-inpa-entrypoint
+COPY . /var/www/html
 COPY --from=vite-assets /build/public/build /opt/art-inpa/public/build
 
-RUN a2enconf art-inpa-servername \
+RUN rm -f bootstrap/cache/*.php \
+    && composer install \
+        --no-dev \
+        --no-interaction \
+        --no-progress \
+        --no-scripts \
+        --optimize-autoloader \
+    && a2enconf art-inpa-servername \
     && chmod +x /usr/local/bin/art-inpa-entrypoint
 
 WORKDIR /var/www/html

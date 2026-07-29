@@ -1,0 +1,12 @@
+# Backup and recovery log
+
+## 2026-07-29 - Installer APP_KEY core repair
+
+- Recovery point: `backups/installer-app-key-core-20260729-164500`
+- Reason: preserve the pre-change installer state before changing application
+  bootstrap, Docker startup, image packaging, installation flags, and tests.
+- Scope: `.env.example`, `.env.installation`, Dockerfile and entrypoint, plus
+  `InstallationState`, `PlatformInstaller`, and `RuntimeEnvironment`.
+- State: retained locally and excluded from the Docker build context.
+- Rollback: restore only the listed files from this recovery point; do not
+  overwrite unrelated Page Builder or local `.env` work.

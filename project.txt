@@ -1882,21 +1882,27 @@ Current behavior:
   default admin theme.
 ## First-run installation wizard
 
-New deployments use `INSTAAL_IS_ATIVE` as the explicit installation gate.
-The clean `.env.installation` template contains only this flag and can be
-copied to `.env` for a first-run installation.
+New deployments use `INSTAAL_IS_ACTIVE` as the canonical installation gate and
+retain `INSTAAL_IS_ATIVE` as a backward-compatible alias for existing
+deployments. The clean `.env.installation` template sets both flags to `0`.
 `0` redirects all application traffic, except `/up`, to the three-step
 `/install` wizard. The wizard collects platform identity, validates a MySQL
 connection, requires an explicit destructive-data confirmation, and finally
 runs a fresh seeded migration before creating the verified super-admin owner.
 The completed installation stores platform identity in `platform_settings` and
-sets `INSTAAL_IS_ATIVE=1`.
+sets both installation flags to `1`.
 
 Changing the value back to `0` exposes the installer again, but never erases
 data until the database warning is accepted and the final installation action
-is submitted. Container deployments must persist the runtime `.env` file (or
-manage this flag through the deployment platform) across container recreation.
-The Docker entrypoint bootstraps and persists a cryptographically random
-`APP_KEY` when a clean first-run environment does not provide one. Laravel
-therefore has stable session encryption before the installation wizard starts;
-an explicitly configured non-empty key is always preserved.
+is submitted. Container deployments persist installation state and the
+generated key in `storage/app/platform/installation.env`.
+
+When the installation flag is `0` and no key exists, both the Docker entrypoint
+and the early Laravel runtime bootstrap can generate a cryptographically random
+`APP_KEY`. The entrypoint exports it to Apache and stores it in the persistent
+runtime file before Laravel starts, so encrypted sessions work on the first
+request. Explicit and previously persisted non-empty keys are always preserved.
+When the installation flag is `1`, startup never generates a replacement for a
+missing key because replacing an installed platform key would invalidate
+encrypted data. The deployment image excludes the runtime platform directory,
+so local keys and installation state cannot be baked into distributable images.
