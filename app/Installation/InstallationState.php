@@ -6,6 +6,11 @@ use Illuminate\Support\Facades\File;
 
 final class InstallationState
 {
+    public function __construct(
+        private readonly ?string $runtimePath = null,
+        private readonly ?string $environmentPath = null,
+    ) {}
+
     public function installed(): bool
     {
         $active = $this->value('INSTAAL_IS_ACTIVE', '');
@@ -25,9 +30,9 @@ final class InstallationState
     /** @param array<string, string> $values */
     public function write(array $values): void
     {
-        $this->writeFile(RuntimeEnvironment::path(), $values, true);
+        $this->writeFile($this->runtimePath(), $values, true);
 
-        $environmentPath = base_path('.env');
+        $environmentPath = $this->environmentPath();
         if (File::exists($environmentPath) && is_writable($environmentPath)) {
             $this->writeFile($environmentPath, $values);
         }
@@ -35,7 +40,7 @@ final class InstallationState
 
     private function value(string $key, string $default): string
     {
-        foreach ([RuntimeEnvironment::path(), base_path('.env')] as $path) {
+        foreach ([$this->runtimePath(), $this->environmentPath()] as $path) {
             if (! File::exists($path)) {
                 continue;
             }
@@ -46,6 +51,16 @@ final class InstallationState
         }
 
         return $default;
+    }
+
+    private function runtimePath(): string
+    {
+        return $this->runtimePath ?? RuntimeEnvironment::path();
+    }
+
+    private function environmentPath(): string
+    {
+        return $this->environmentPath ?? base_path('.env');
     }
 
     private function quote(string $value): string
@@ -69,7 +84,7 @@ final class InstallationState
 
         File::put($path, ltrim($content), true);
         if ($protect) {
-            @chmod($path, 0600);
+            @chmod($path, 0660);
         }
     }
 }

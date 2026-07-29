@@ -54,6 +54,7 @@ class DeploymentAssetBuildContractTest extends TestCase
         self::assertStringContainsString('INSTAAL_IS_ACTIVE', $entrypoint);
         self::assertStringContainsString('INSTAAL_IS_ATIVE', $entrypoint);
         self::assertStringContainsString('storage/app/platform/installation.env', $entrypoint);
+        self::assertStringContainsString('@chmod($path, 0660)', $entrypoint);
         self::assertStringContainsString('The platform is marked as installed but APP_KEY is missing.', $entrypoint);
         self::assertStringNotContainsString('npm install', $entrypoint);
         self::assertStringNotContainsString('npm run build', $entrypoint);

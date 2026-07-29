@@ -13,13 +13,54 @@ final class InstallationController extends Controller
 {
     public function __construct(private readonly InstallationState $state) {}
 
-    public function platform(): View|RedirectResponse
+    public function index(): View|RedirectResponse
     {
-        return $this->state->installed() ? redirect('/') : view('installation.wizard', ['step' => 1]);
+        return $this->state->installed() ? redirect('/') : view('installation.wizard', ['step' => 0]);
+    }
+
+    public function update(Request $request): RedirectResponse
+    {
+        if ($this->state->installed()) {
+            return redirect('/');
+        }
+
+        $this->state->setInstalled(true);
+        $request->session()->invalidate();
+
+        return redirect('/')->with('status', 'Platform update mode completed. Existing environment and data were preserved.');
+    }
+
+    public function fresh(Request $request): RedirectResponse
+    {
+        if ($this->state->installed()) {
+            return redirect('/');
+        }
+
+        $request->session()->forget('installation');
+        $request->session()->put('installation.mode', 'fresh');
+
+        return redirect()->route('install.platform');
+    }
+
+    public function platform(Request $request): View|RedirectResponse
+    {
+        if ($this->state->installed()) {
+            return redirect('/');
+        }
+
+        if (! $this->freshInstallationSelected($request)) {
+            return redirect()->route('install.index');
+        }
+
+        return view('installation.wizard', ['step' => 1]);
     }
 
     public function storePlatform(Request $request): RedirectResponse
     {
+        if (! $this->freshInstallationSelected($request)) {
+            return redirect()->route('install.index');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'domain' => ['required', 'url', 'max:255'],
@@ -35,6 +76,10 @@ final class InstallationController extends Controller
 
     public function database(Request $request): View|RedirectResponse
     {
+        if (! $this->freshInstallationSelected($request)) {
+            return redirect()->route('install.index');
+        }
+
         if (! $request->session()->has('installation.platform')) {
             return redirect()->route('install.platform');
         }
@@ -43,6 +88,10 @@ final class InstallationController extends Controller
 
     public function storeDatabase(Request $request, PlatformInstaller $installer): RedirectResponse
     {
+        if (! $this->freshInstallationSelected($request)) {
+            return redirect()->route('install.index');
+        }
+
         $database = $request->validate([
             'host' => ['required', 'string', 'max:255'],
             'port' => ['required', 'integer', 'between:1,65535'],
@@ -62,6 +111,10 @@ final class InstallationController extends Controller
 
     public function owner(Request $request): View|RedirectResponse
     {
+        if (! $this->freshInstallationSelected($request)) {
+            return redirect()->route('install.index');
+        }
+
         if (! $request->session()->has('installation.database')) {
             return redirect()->route('install.database');
         }
@@ -70,6 +123,10 @@ final class InstallationController extends Controller
 
     public function finish(Request $request, PlatformInstaller $installer): RedirectResponse
     {
+        if (! $this->freshInstallationSelected($request)) {
+            return redirect()->route('install.index');
+        }
+
         $owner = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:10', 'confirmed'],
@@ -94,5 +151,10 @@ final class InstallationController extends Controller
         }
         $request->session()->invalidate();
         return redirect('/login')->with('status', 'Installation completed. Sign in with the super administrator account.');
+    }
+
+    private function freshInstallationSelected(Request $request): bool
+    {
+        return $request->session()->get('installation.mode') === 'fresh';
     }
 }

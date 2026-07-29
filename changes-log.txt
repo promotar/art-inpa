@@ -1,0 +1,27 @@
+# Change log
+
+## 2026-07-30 - Installer update or fresh-install choice
+
+- Added a first installer screen with `Update platform` and `Fresh
+  installation` modes.
+- Update mode changes only `INSTAAL_IS_ACTIVE` and compatibility
+  `INSTAAL_IS_ATIVE` to `1`; it does not invoke `PlatformInstaller`, run
+  migrations, connect to the database, or replace other environment values.
+- Fresh mode continues the existing platform identity, database, and owner
+  wizard without changing its destructive-confirmation behavior.
+- Added session guards that prevent direct access to fresh-install steps before
+  choosing fresh mode.
+- Added a scoped CSS design system in `resources/css/installation.css` through
+  the existing Vite CSS entrypoint.
+- Corrected runtime precedence so explicit process/container values are
+  preserved and the runtime file fills only missing values.
+- Changed the private runtime file mode to `660` under `www-data`, allowing the
+  web installer to update only the installation-state flags.
+- Recovery point: `backups/installer-mode-choice-20260730-000752`.
+- Verification: production image and Vite assets built successfully; choice
+  page returned HTTP 200; update mode redirected and changed both flags to `1`
+  while preserving the hash of all non-flag runtime values; fresh mode opened
+  the existing Platform, Database, and Owner wizard.
+- `InstallationModeChoiceTest`: 4 tests / 21 assertions passed, including an
+  isolated update-state preservation test that never touches the real `.env`.
+- `DeploymentAssetBuildContractTest`: 6 tests / 80 assertions passed.

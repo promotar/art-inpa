@@ -139,7 +139,7 @@ if [ -z "${APP_KEY:-}" ] && [ "$INSTALLATION_FLAG" != "1" ]; then
                 : rtrim($content).PHP_EOL.$line.PHP_EOL;
             file_put_contents($path, ltrim($content), LOCK_EX);
             if ($protect) {
-                @chmod($path, 0640);
+                @chmod($path, 0660);
             }
         };
 

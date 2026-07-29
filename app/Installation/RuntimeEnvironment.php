@@ -36,6 +36,11 @@ final class RuntimeEnvironment
                 continue;
             }
 
+            $processValue = getenv($key);
+            if (is_string($processValue) && trim($processValue) !== '') {
+                continue;
+            }
+
             $value = trim(trim($value), "\"'");
             putenv($key.'='.$value);
             $_ENV[$key] = $value;
@@ -101,7 +106,7 @@ final class RuntimeEnvironment
 
         file_put_contents($path, ltrim($content), LOCK_EX);
         if ($protect) {
-            @chmod($path, 0640);
+            @chmod($path, 0660);
         }
     }
 

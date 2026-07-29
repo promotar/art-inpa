@@ -18,7 +18,7 @@ final class EnsurePlatformInstalled
         }
 
         if (! $this->state->installed()) {
-            return redirect()->route('install.platform');
+            return redirect()->route('install.index');
         }
 
         return $next($request);
