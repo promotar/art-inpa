@@ -40,14 +40,16 @@ final class InstallationModeChoiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_installer_starts_with_update_and_fresh_installation_choices(): void
+    public function test_fresh_deployment_enters_the_installation_wizard_immediately(): void
     {
         $this->get(route('install.index'))
+            ->assertRedirect(route('install.platform'))
+            ->assertSessionHas('installation.mode', 'fresh');
+
+        $this->get(route('install.platform'))
             ->assertOk()
-            ->assertSee('Update platform')
-            ->assertSee('Fresh installation')
-            ->assertSee(route('install.update'), false)
-            ->assertSee(route('install.fresh'), false);
+            ->assertSee('Platform identity')
+            ->assertDontSee('Update platform');
     }
 
     public function test_fresh_wizard_cannot_be_opened_before_selecting_fresh_installation(): void
@@ -56,45 +58,16 @@ final class InstallationModeChoiceTest extends TestCase
             ->assertRedirect(route('install.index'));
     }
 
-    public function test_selecting_fresh_installation_continues_the_existing_wizard(): void
+    public function test_installed_deployment_never_reopens_the_installer(): void
     {
-        $this->post(route('install.fresh'))
-            ->assertRedirect(route('install.platform'));
+        $this->app->make(InstallationState::class)->setInstalled(true);
 
-        $this->get(route('install.platform'))
-            ->assertOk()
-            ->assertSee('Platform identity')
-            ->assertSee('Database', false)
-            ->assertSee('Owner', false);
+        $this->get(route('install.index'))->assertRedirect('/');
+        $this->get(route('install.platform'))->assertRedirect('/');
     }
 
-    public function test_update_mode_only_changes_installation_state_flags(): void
+    public function test_unsafe_manual_update_switch_is_not_exposed(): void
     {
-        $runtimeBefore = File::get($this->runtimePath);
-        $environmentBefore = File::get($this->environmentPath);
-
-        $this->post(route('install.update'))
-            ->assertRedirect('/');
-
-        $runtimeAfter = File::get($this->runtimePath);
-        $environmentAfter = File::get($this->environmentPath);
-
-        $this->assertSame(
-            $this->withoutInstallationFlags($runtimeBefore),
-            $this->withoutInstallationFlags($runtimeAfter),
-        );
-        $this->assertSame(
-            $this->withoutInstallationFlags($environmentBefore),
-            $this->withoutInstallationFlags($environmentAfter),
-        );
-        $this->assertStringContainsString('INSTAAL_IS_ACTIVE="1"', $runtimeAfter);
-        $this->assertStringContainsString('INSTAAL_IS_ATIVE="1"', $runtimeAfter);
-        $this->assertStringContainsString('INSTAAL_IS_ACTIVE="1"', $environmentAfter);
-        $this->assertStringContainsString('INSTAAL_IS_ATIVE="1"', $environmentAfter);
-    }
-
-    private function withoutInstallationFlags(string $content): string
-    {
-        return (string) preg_replace('/^INSTAAL_IS_(?:ACTIVE|ATIVE)=.*\R?/m', '', $content);
+        $this->post('/install/update')->assertNotFound();
     }
 }

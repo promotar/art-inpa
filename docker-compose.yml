@@ -1,28 +1,24 @@
-name: art-inpa-local
+name: art-inpa
 
 services:
   app:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    container_name: art-inpa-app
     working_dir: /var/www/html
-    env_file:
-      - .env
     ports:
       - "127.0.0.1:${ART_INPA_HTTP_PORT:-8088}:80"
     volumes:
-      - ./:/var/www/html
-    networks:
-      - vps-internal
+      - art-inpa-storage:/var/www/html/storage
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1/up >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
+      start_period: 30s
 
-networks:
-  vps-internal:
-    external: true
-    name: vps-internal
+volumes:
+  art-inpa-storage:

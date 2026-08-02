@@ -56,6 +56,8 @@ class DeploymentAssetBuildContractTest extends TestCase
         self::assertStringContainsString('storage/app/platform/installation.env', $entrypoint);
         self::assertStringContainsString('@chmod($path, 0660)', $entrypoint);
         self::assertStringContainsString('The platform is marked as installed but APP_KEY is missing.', $entrypoint);
+        self::assertStringContainsString('Existing installation detected; applying non-destructive database migrations', $entrypoint);
+        self::assertStringContainsString('php artisan migrate --force --no-interaction', $entrypoint);
         self::assertStringNotContainsString('npm install', $entrypoint);
         self::assertStringNotContainsString('npm run build', $entrypoint);
         self::assertStringNotContainsString('apt-get install', $entrypoint);
@@ -67,7 +69,7 @@ class DeploymentAssetBuildContractTest extends TestCase
 
         self::assertMatchesRegularExpression('/^public\/build$/m', $dockerignore);
         self::assertMatchesRegularExpression('/^public\/hot$/m', $dockerignore);
-        self::assertMatchesRegularExpression('/^storage\/app\/platform$/m', $dockerignore);
+        self::assertMatchesRegularExpression('/^storage\/app$/m', $dockerignore);
     }
 
     public function test_runtime_never_redirects_the_public_root_to_public_html(): void
@@ -110,6 +112,9 @@ class DeploymentAssetBuildContractTest extends TestCase
             self::assertStringNotContainsString("\n  vite:", $compose, $path);
             self::assertStringNotContainsString('nginx:', $compose, $path);
             self::assertStringNotContainsString('php-fpm', $compose, $path);
+            self::assertStringNotContainsString('env_file:', $compose, $path);
+            self::assertStringNotContainsString('./:/var/www/html', $compose, $path);
+            self::assertStringContainsString('art-inpa-storage:/var/www/html/storage', $compose, $path);
         }
 
         self::assertSame('sync', $this->environmentValue('QUEUE_CONNECTION'));

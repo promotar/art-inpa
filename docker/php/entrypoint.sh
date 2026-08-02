@@ -5,6 +5,8 @@ cd /var/www/html
 umask 0002
 
 mkdir -p \
+    storage/app/private \
+    storage/app/private/installation \
     storage/app/public \
     storage/app/public/settings \
     storage/app/plugin_uploads \
@@ -29,6 +31,8 @@ mkdir -p \
     bootstrap/cache
 
 chgrp www-data \
+    storage/app/private \
+    storage/app/private/installation \
     storage/app/public \
     storage/app/public/settings \
     storage/app/platform \
@@ -62,6 +66,8 @@ chmod 2775 \
     bootstrap/cache
 
 chmod 2770 \
+    storage/app/private \
+    storage/app/private/installation \
     storage/app/platform \
     storage/app/platform/backup-checkpoints \
     storage/app/platform/plugin-install-checkpoints \
@@ -90,7 +96,38 @@ chmod 2770 \
     storage/app/plugin_uploads/extracted \
     storage/app/plugin_uploads/pending_updates
 
-if [ ! -f vendor/autoload.php ]; then
+# Bind mounts and persistent volumes can contain files created by the host or
+# an older container. Keep all runtime files writable by Apache, not only their
+# parent directories.
+RUNTIME_WRITABLE_PATHS="
+storage/app/private
+storage/app/public
+storage/app/platform
+storage/app/plugin_uploads
+storage/app/plugin_updates
+storage/app/plugin_uninstalls
+storage/app/theme-overrides
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+storage/logs
+bootstrap/cache
+"
+
+chgrp -R www-data $RUNTIME_WRITABLE_PATHS
+
+find $RUNTIME_WRITABLE_PATHS -type d -exec chmod g+rwx {} +
+find $RUNTIME_WRITABLE_PATHS -type f -exec chmod g+rw {} +
+
+if [ "${ART_INPA_DEVELOPMENT:-0}" = "1" ]; then
+    DEVELOPMENT_UID="${ART_INPA_HOST_UID:-1000}"
+    DEVELOPMENT_GID="${ART_INPA_HOST_GID:-1000}"
+    chown -R "$DEVELOPMENT_UID:$DEVELOPMENT_GID" $RUNTIME_WRITABLE_PATHS
+    chgrp -R www-data $RUNTIME_WRITABLE_PATHS
+fi
+
+if [ ! -f vendor/autoload.php ] || [ "${ART_INPA_DEVELOPMENT:-0}" = "1" ]; then
+    echo ">>> Installing Composer dependencies for a source-mounted development workspace..."
     composer install --no-interaction --prefer-dist
 fi
 
@@ -108,15 +145,32 @@ if [ ! -s public/build/manifest.json ]; then
     exit 1
 fi
 
-INSTALLATION_FLAG="${INSTAAL_IS_ACTIVE:-${INSTAAL_IS_ATIVE:-0}}"
-
-if [ -z "${APP_KEY:-}" ] && [ -r storage/app/platform/installation.env ]; then
-    APP_KEY="$(php -r '
-        $content = (string) file_get_contents("/var/www/html/storage/app/platform/installation.env");
-        if (preg_match("/^APP_KEY=(.*)$/m", $content, $match) === 1) {
+runtime_value() {
+    php -r '
+        $path = "/var/www/html/storage/app/platform/installation.env";
+        $key = $argv[1] ?? "";
+        $content = is_readable($path) ? (string) file_get_contents($path) : "";
+        if ($key !== "" && preg_match("/^".preg_quote($key, "/")."=(.*)$/m", $content, $match) === 1) {
             echo trim(trim($match[1]), "\"\x27");
         }
-    ')"
+    ' "$1"
+}
+
+RUNTIME_INSTALLATION_FLAG=""
+if [ -r storage/app/platform/installation.env ]; then
+    RUNTIME_INSTALLATION_FLAG="$(runtime_value INSTAAL_IS_ACTIVE)"
+    if [ -z "$RUNTIME_INSTALLATION_FLAG" ]; then
+        RUNTIME_INSTALLATION_FLAG="$(runtime_value INSTAAL_IS_ATIVE)"
+    fi
+fi
+
+# Persistent installer state is authoritative during image upgrades. Process
+# variables remain supported for installations managed by an external secrets
+# provider when no persistent flag exists.
+INSTALLATION_FLAG="${RUNTIME_INSTALLATION_FLAG:-${INSTAAL_IS_ACTIVE:-${INSTAAL_IS_ATIVE:-0}}}"
+
+if [ -z "${APP_KEY:-}" ] && [ -r storage/app/platform/installation.env ]; then
+    APP_KEY="$(runtime_value APP_KEY)"
 
     if [ -n "$APP_KEY" ]; then
         export APP_KEY
@@ -157,6 +211,11 @@ if [ -z "${APP_KEY:-}" ] && [ "$INSTALLATION_FLAG" = "1" ]; then
     echo "ERROR: The platform is marked as installed but APP_KEY is missing." >&2
     echo "Restore the original persistent APP_KEY; generating a replacement would invalidate encrypted data." >&2
     exit 1
+fi
+
+if [ "$INSTALLATION_FLAG" = "1" ]; then
+    echo ">>> Existing installation detected; applying non-destructive database migrations..."
+    php artisan migrate --force --no-interaction
 fi
 
 php artisan package:discover --ansi >/dev/null

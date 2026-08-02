@@ -1,49 +1,37 @@
 # Art INPA Local Docker
 
-## Runtime
+The Docker layout is split by purpose:
 
-The project runs as one Laravel application service:
+- `docker-compose.yml`: portable fresh install and production-like runtime;
+  contains no source bind, `.env` injection, database container, or required
+  external network.
+- `docker-compose.dev.yml`: local source mount plus isolated `vendor` and Vite
+  build volumes.
+- `docker-compose.database-net.yml`: optional connection to an already-created
+  external `database-net` network.
+- `docker-compose.prod.yml`: standalone production binding on all interfaces.
 
-- `art-inpa-app`: Apache 2 + PHP 8.2 + Laravel on `http://localhost:8088`
-- `vps-mysql`: shared infrastructure outside this Compose project
+The base runtime exposes Apache/PHP at `http://127.0.0.1:8088`, uses the
+verified frontend assets built into the image, and persists `storage` in the
+`art-inpa-storage` volume. Queue work uses `QUEUE_CONNECTION=sync`; the project
+does not require Vite, Nginx, a queue worker, or a scheduler container.
 
-The application joins the external `vps-internal` network. This project does
-not create Nginx, Vite, queue, scheduler, cache, or database containers.
+Common commands:
 
-Queue work uses `QUEUE_CONNECTION=sync`, so dispatched jobs execute in the web
-request instead of waiting for a missing worker. The repository currently has
-no scheduled application tasks.
-
-## Commands
-
-```powershell
-cd D:\VPS\art-inpa
+```bash
 docker compose up -d --build
 docker compose ps
 docker compose logs -f app
 docker compose exec app php artisan about
-docker compose exec app php artisan route:cache
 docker compose down
 ```
 
-Run `php artisan route:cache` again after changing core or plugin routes.
+For source-mounted development:
 
-## Frontend Assets
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
 
-The Dockerfile has a Node build stage that runs `npm ci` and `npm run build`.
-Only its verified `public/build` output is copied into the final Apache/PHP
-image. The running container does not include or start Node/Vite.
-
-The source bind mount can hide image files, so the entrypoint restores the
-immutable build artifact when `public/build/manifest.json` is absent. An image
-without a valid manifest exits before Laravel starts.
-
-For active frontend development, run `npm run dev` directly from the project
-workspace. It is a development command, not a Docker service.
-
-## Data And Secrets
-
-- MySQL remains in the shared `vps-mysql` container.
-- The active local `.env` is owner-only and excluded from Git.
-- Plugin packages and uploaded files remain in this repository bind mount.
-- Recovery points are recorded under `backups\` and in `backups-log.txt`.
+Add `-f docker-compose.database-net.yml` only on hosts where that external
+network already exists. See `SETUP_GUIDE.md` for fresh-install and update
+behavior.

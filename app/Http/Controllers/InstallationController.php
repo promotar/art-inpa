@@ -13,24 +13,7 @@ final class InstallationController extends Controller
 {
     public function __construct(private readonly InstallationState $state) {}
 
-    public function index(): View|RedirectResponse
-    {
-        return $this->state->installed() ? redirect('/') : view('installation.wizard', ['step' => 0]);
-    }
-
-    public function update(Request $request): RedirectResponse
-    {
-        if ($this->state->installed()) {
-            return redirect('/');
-        }
-
-        $this->state->setInstalled(true);
-        $request->session()->invalidate();
-
-        return redirect('/')->with('status', 'Platform update mode completed. Existing environment and data were preserved.');
-    }
-
-    public function fresh(Request $request): RedirectResponse
+    public function index(Request $request): RedirectResponse
     {
         if ($this->state->installed()) {
             return redirect('/');

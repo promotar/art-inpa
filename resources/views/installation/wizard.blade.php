@@ -10,13 +10,11 @@
 <main class="installer-layout">
     <div class="installer-brand">Art INPA Installation</div>
 
-    @if($step > 0)
-        <div class="installer-steps" aria-label="Installation progress">
-            <div class="installer-step {{ $step === 1 ? 'is-active' : '' }}">1. Platform</div>
-            <div class="installer-step {{ $step === 2 ? 'is-active' : '' }}">2. Database</div>
-            <div class="installer-step {{ $step === 3 ? 'is-active' : '' }}">3. Owner</div>
-        </div>
-    @endif
+    <div class="installer-steps" aria-label="Installation progress">
+        <div class="installer-step {{ $step === 1 ? 'is-active' : '' }}">1. Platform</div>
+        <div class="installer-step {{ $step === 2 ? 'is-active' : '' }}">2. Database</div>
+        <div class="installer-step {{ $step === 3 ? 'is-active' : '' }}">3. Owner</div>
+    </div>
 
     <section class="installer-panel">
         @if($errors->any())
@@ -25,32 +23,7 @@
             </div>
         @endif
 
-        @if($step === 0)
-            <h1>Choose installation mode</h1>
-            <p>Select the safe update path for an existing platform, or start the current clean installation process.</p>
-
-            <div class="installer-choice-grid">
-                <article class="installer-choice">
-                    <div class="installer-choice__icon" aria-hidden="true">↻</div>
-                    <h2>Update platform</h2>
-                    <p>Keep the existing database and environment values. Only mark the platform installation state as active.</p>
-                    <form method="post" action="{{ route('install.update') }}">
-                        @csrf
-                        <button class="installer-button installer-button--update" type="submit">Update platform</button>
-                    </form>
-                </article>
-
-                <article class="installer-choice installer-choice--fresh">
-                    <div class="installer-choice__icon" aria-hidden="true">＋</div>
-                    <h2>Fresh installation</h2>
-                    <p>Continue with the existing installation wizard for platform, database, and owner configuration.</p>
-                    <form method="post" action="{{ route('install.fresh') }}">
-                        @csrf
-                        <button class="installer-button" type="submit">Start fresh installation</button>
-                    </form>
-                </article>
-            </div>
-        @elseif($step === 1)
+        @if($step === 1)
             <h1>Platform identity</h1>
             <p>Set the public identity for this installation.</p>
             <form method="post" action="{{ route('install.platform.store') }}" enctype="multipart/form-data">

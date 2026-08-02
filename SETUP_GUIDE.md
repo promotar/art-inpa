@@ -1,52 +1,88 @@
 # Setup Guide
 
-## Local Development
+## Fresh Docker Installation
+
+A fresh checkout must not contain `.env`, an application key, database
+credentials, or an installed-state flag. Build and start it directly:
+
+```bash
+git clone https://github.com/promotar/art-inpa.git
+cd art-inpa
+docker compose up -d --build
+```
+
+Open `http://127.0.0.1:8088`. The application redirects to the installation
+wizard. The wizard creates the permanent `APP_KEY`, tests the supplied MySQL
+connection, runs a destructive `migrate:fresh` only after explicit confirmation,
+and creates the super administrator.
+
+Do not copy `.env.example` for a production installation. Installer-owned
+secrets and state are written to the persistent `art-inpa-storage` Docker
+volume, under `storage/app/platform/installation.env`.
+
+The database must already exist and be reachable from the app container. Use a
+remote hostname/IP or `host.docker.internal` for a database exposed by the
+Docker host.
+
+## Updating An Installed Container
+
+Keep the existing Compose project and its `art-inpa-storage` volume:
+
+```bash
+git pull --ff-only
+docker compose up -d --build
+```
+
+The entrypoint detects the persistent installed state and runs only
+non-destructive `php artisan migrate --force`. It preserves the original
+`APP_KEY`, database, users, and settings, and does not reopen the installer.
+
+Never use `docker compose down -v` during an update: `-v` deletes the persistent
+installer state and uploaded storage.
+
+## Development Environment
+
+Development uses a source-mount override while keeping `vendor` and built Vite
+assets in Docker volumes:
 
 ```bash
 cp .env.example .env
-docker compose up -d --build
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate --force
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-Compose starts one Apache/PHP Laravel service. It does not start Vite, Nginx,
-queue, or scheduler containers. Run `npm run dev` from the workspace only while
-actively developing frontend files; its `public/hot` file remains local-only.
+Edit `.env` only for local development. It is ignored by Git and rejected by
+the repository credential guard if accidentally staged.
 
-## Production Assets
+The development override defaults to host UID/GID `1000:1000` so generated
+storage remains editable. Set `ART_INPA_HOST_UID` and `ART_INPA_HOST_GID` in
+your shell when the development user has different IDs.
 
-Laravel `@vite` requires `public/build/manifest.json` when no Vite development
-server is active. The manifest is generated during deployment:
+If the development database is an existing container on the external
+`database-net` network, add the optional network override:
 
-- `nixpacks.toml` is the source of truth for Coolify/Nixpacks.
-- `package.json` pins the frontend builder to Node `22.x`.
-- `docker/php/Dockerfile` is the source of truth for Docker Compose images.
-- `docker/php/entrypoint.sh` only restores assets already built into the image.
+```bash
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.dev.yml \
+  -f docker-compose.database-net.yml \
+  up -d --build
+```
 
-The runtime image intentionally does not contain npm and does not download
-Node.js. A missing build artifact stops startup with an actionable error.
-
-Laravel, Apache, plugin assets, and Vite all use the repository `public`
-directory. There is no external or sibling public directory.
-
-## Manual Source Verification
+Run Vite on the host only while actively developing frontend files:
 
 ```bash
 npm ci --include=dev
-npm run build
-test -s public/build/manifest.json
+npm run dev
 ```
 
-This verifies source code but does not replace the image build during
-deployment.
+## Pre-publish Safety Check
 
-## Coolify Requirements
+Before committing or publishing:
 
-- Build pack: `Nixpacks`
-- Repository root as the base directory
-- No custom Build command overriding `nixpacks.toml`
-- Production `APP_KEY` and database variables
-- `APP_ENV=production`
-- `APP_DEBUG=false`
+```bash
+bash scripts/verify-no-sensitive-files.sh
+docker compose config --quiet
+```
 
-After deployment, verify `/login` and the CSS/JS files emitted by `@vite`.
+GitHub Actions runs the same sensitive-file guard on every push and pull
+request.

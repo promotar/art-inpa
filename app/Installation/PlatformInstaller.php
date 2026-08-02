@@ -39,7 +39,10 @@ final class PlatformInstaller
     public function install(array $platform, array $database, array $owner, ?UploadedFile $logo): void
     {
         $this->testDatabase($database);
-        $appKey = config('app.key') ?: 'base64:'.base64_encode(random_bytes(32));
+        // A fresh installation always gets a new permanent key. The key used
+        // while rendering the installer is temporary and must never be reused
+        // from a packaged environment file.
+        $appKey = 'base64:'.base64_encode(random_bytes(32));
 
         $this->state->write([
             'APP_NAME' => $platform['name'],
