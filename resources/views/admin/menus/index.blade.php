@@ -11,16 +11,7 @@
 
         $activeMenus = $menus->get($activeLocation, collect());
         $activeMenu = $activeMenuId ? $activeMenus->firstWhere('id', $activeMenuId) : null;
-        $activeMenu = $activeMenu ?: ($activeLocation === 'admin'
-            ? ($activeMenus->firstWhere('key', 'platform.admin') ?: $activeMenus->first())
-            : $activeMenus->first());
-
-        $contentTypeLabels = [
-            'header' => 'Headers',
-            'footer' => 'Footers',
-            'block' => 'Reusable Blocks',
-        ];
-        $builderGroups = $builderContent->groupBy('content_type');
+        $activeMenu = $activeMenu ?: $activeMenus->first();
 
         $orderedItems = collect();
         $parentChoices = collect();
@@ -47,7 +38,7 @@
         }
     @endphp
 
-    <div class="ainpa-admin-page admin-menu-page">
+    <div class="ainpa-admin-page admin-menu-page is-admin-menu {{ $activeLocation === 'frontend' ? 'is-frontend-menu' : '' }}">
         <div class="ainpa-page-container admin-menu-container">
             @if (session('status'))
                 <div class="ainpa-alert ainpa-alert-success">{{ session('status') }}</div>
@@ -56,27 +47,6 @@
             @if (isset($errors) && $errors->any())
                 <div class="ainpa-alert ainpa-alert-danger">{{ $errors->first() }}</div>
             @endif
-
-            <section class="admin-menu-hero">
-                <div>
-                    <p class="admin-menu-eyebrow">Navigation Builder</p>
-                    <h3 class="admin-menu-title">Admin and frontend menu structure</h3>
-                    <p class="admin-menu-subtitle">
-                        Manage primary items, submenu items, permissions, routes, plugin entries, and frontend menu styling from the database-backed menu builder.
-                    </p>
-                </div>
-
-                <div class="admin-menu-hero-stats">
-                    <span class="admin-menu-stat">
-                        <strong>{{ $activeMenus->count() }}</strong>
-                        <span>{{ $activeLocation === 'admin' ? 'admin sources' : 'frontend menus' }}</span>
-                    </span>
-                    <span class="admin-menu-stat">
-                        <strong>{{ $activeMenu?->items->count() ?? 0 }}</strong>
-                        <span>items in view</span>
-                    </span>
-                </div>
-            </section>
 
             <nav class="admin-menu-tabs" aria-label="Menu locations">
                 @foreach ($locations as $location => $label)
@@ -92,10 +62,10 @@
             <section class="admin-menu-card">
                 <div class="admin-menu-card-header">
                     <div>
-                        <h3 class="admin-menu-card-title">{{ $activeLocation === 'admin' ? 'Admin menu sources' : 'Frontend menus' }}</h3>
+                        <h3 class="admin-menu-card-title">{{ $activeLocation === 'admin' ? 'Admin menu sections' : 'Frontend menus' }}</h3>
                         <p class="admin-menu-card-subtitle">
                             {{ $activeLocation === 'admin'
-                                ? 'The sidebar is built from the platform admin menu plus active plugin admin menus.'
+                                ? 'Each section and item below is a registered part of the admin sidebar.'
                                 : 'Frontend menus can be created, configured, and used by public layouts.' }}
                         </p>
                     </div>
@@ -108,6 +78,15 @@
                             @click="$dispatch('open-menu-create')"
                         >
                             New Menu
+                        </button>
+                    @else
+                        <button
+                            type="button"
+                            class="ainpa-button ainpa-button-primary ainpa-button-compact"
+                            x-data
+                            @click="$dispatch('open-admin-section-create')"
+                        >
+                            New Section
                         </button>
                     @endif
                 </div>
@@ -222,28 +201,72 @@
                         @endif
                     </div>
                 @else
-                    @if ($activeMenus->isEmpty())
-                        <div class="admin-menu-empty">No admin menu sources are registered.</div>
-                    @else
-                        <div class="admin-menu-source-grid">
-                            @foreach ($activeMenus as $menu)
-                                <a
-                                    href="{{ route('admin.menus.index', ['location' => 'admin', 'menu' => $menu->id]) }}"
-                                    class="admin-menu-source-card admin-menu-source-link {{ $activeMenu?->id === $menu->id ? 'is-active' : '' }}"
-                                >
-                                    <div class="admin-menu-source-main">
-                                        <div>
-                                            <h4 class="admin-menu-source-title">{{ $menu->name }}</h4>
-                                            <p class="admin-menu-source-meta">{{ $menu->key }} · {{ $menu->source }} · {{ $menu->items->count() }} items</p>
-                                        </div>
-                                        <span class="ainpa-status-badge {{ $menu->is_active ? 'ainpa-status-active' : 'ainpa-status-inactive' }}">
-                                            {{ $menu->is_active ? 'Active' : 'Inactive' }}
-                                        </span>
-                                    </div>
-                                </a>
-                            @endforeach
+                    <div x-data="{ createOpen: false, editMenu: null }" @open-admin-section-create.window="createOpen = ! createOpen; editMenu = null">
+                        <div x-show="createOpen" x-cloak class="admin-menu-compact-editor">
+                            <form method="POST" action="{{ route('admin.menus.store', 'admin') }}" class="admin-menu-compact-form">
+                                @csrf
+                                <label class="admin-field">
+                                    <span class="admin-field-label">Section name</span>
+                                    <input name="name" required placeholder="New admin section" class="admin-input">
+                                </label>
+                                <label class="admin-field admin-menu-sort-field">
+                                    <span class="admin-field-label">Order</span>
+                                    <input type="number" name="sort_order" value="70" class="admin-input">
+                                </label>
+                                <input type="hidden" name="is_active" value="1">
+                                <button class="ainpa-button ainpa-button-primary ainpa-button-compact">Create</button>
+                            </form>
                         </div>
-                    @endif
+
+                        @if ($activeMenus->isEmpty())
+                            <div class="admin-menu-empty">No registered admin sections.</div>
+                        @else
+                            <div class="admin-menu-compact-sections">
+                                @foreach ($activeMenus as $menu)
+                                    <article class="admin-menu-compact-section {{ $activeMenu?->id === $menu->id ? 'is-active' : '' }}">
+                                        <a href="{{ route('admin.menus.index', ['location' => 'admin', 'menu' => $menu->id]) }}" class="admin-menu-compact-section-link">
+                                            <span class="admin-menu-compact-order">{{ $menu->sort_order }}</span>
+                                            <span>
+                                                <strong>{{ $menu->name }}</strong>
+                                                <small>{{ $menu->items->count() }} items</small>
+                                            </span>
+                                        </a>
+                                        <div class="admin-menu-compact-actions">
+                                            <button type="button" @click="editMenu = editMenu === {{ $menu->id }} ? null : {{ $menu->id }}; createOpen = false" class="ainpa-button ainpa-button-compact">Edit</button>
+                                            @if ($menu->items->isEmpty())
+                                                <form method="POST" action="{{ route('admin.menus.destroy', $menu) }}" onsubmit="return confirm('Delete this empty admin section?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button class="ainpa-button ainpa-button-danger ainpa-button-compact">Delete</button>
+                                                </form>
+                                            @endif
+                                        </div>
+
+                                        <div x-show="editMenu === {{ $menu->id }}" x-cloak class="admin-menu-compact-editor admin-menu-compact-editor-inline">
+                                            <form method="POST" action="{{ route('admin.menus.update', $menu) }}" class="admin-menu-compact-form">
+                                                @csrf
+                                                @method('PATCH')
+                                                <label class="admin-field">
+                                                    <span class="admin-field-label">Section name</span>
+                                                    <input name="name" value="{{ $menu->name }}" required class="admin-input">
+                                                </label>
+                                                <label class="admin-field admin-menu-sort-field">
+                                                    <span class="admin-field-label">Order</span>
+                                                    <input type="number" name="sort_order" value="{{ $menu->sort_order }}" class="admin-input">
+                                                </label>
+                                                <label class="admin-menu-check-option admin-menu-compact-check">
+                                                    <input type="hidden" name="is_active" value="0">
+                                                    <input type="checkbox" name="is_active" value="1" @checked($menu->is_active)>
+                                                    <span>Active</span>
+                                                </label>
+                                                <button class="ainpa-button ainpa-button-compact">Save</button>
+                                            </form>
+                                        </div>
+                                    </article>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 @endif
             </section>
 
@@ -254,6 +277,9 @@
                             <h3 class="admin-menu-card-title">{{ $activeMenu->name }}</h3>
                             <p class="admin-menu-card-subtitle">
                                 {{ $activeMenu->items->count() }} menu items · {{ $activeMenu->key }} · {{ ucfirst($activeMenu->source) }} source
+                                @if ($activeLocation === 'frontend')
+                                    · VvvebJs hook <code>data-platform-menu-key="{{ $activeMenu->key }}"</code>
+                                @endif
                             </p>
                         </div>
                         <button
@@ -268,7 +294,7 @@
                     <div x-show="addOpen" x-cloak class="admin-menu-panel">
                         <form method="POST" action="{{ route('admin.menus.items.store-for-menu', $activeMenu) }}" class="admin-menu-form">
                             @csrf
-                            @include('admin.menus.partials.item-fields', [
+                            @include($activeLocation === 'admin' ? 'admin.menus.partials.admin-item-fields' : 'admin.menus.partials.item-fields', [
                                 'item' => null,
                                 'activeLocation' => $activeLocation,
                                 'permissions' => $permissions,
@@ -331,7 +357,7 @@
                                         <form method="POST" action="{{ route('admin.menus.items.update', $item) }}" class="admin-menu-form">
                                             @csrf
                                             @method('PATCH')
-                                            @include('admin.menus.partials.item-fields', [
+                                            @include($activeLocation === 'admin' ? 'admin.menus.partials.admin-item-fields' : 'admin.menus.partials.item-fields', [
                                                 'item' => $item,
                                                 'activeLocation' => $activeLocation,
                                                 'permissions' => $permissions,
@@ -352,46 +378,6 @@
                 </section>
             @endif
 
-            @if ($activeLocation === 'frontend')
-                <section class="admin-menu-card">
-                    <div class="admin-menu-card-header">
-                        <div>
-                            <h3 class="admin-menu-card-title">Header, Footer & Blocks Builder</h3>
-                            <p class="admin-menu-card-subtitle">Saved in the pages table with content type header, footer, or block.</p>
-                        </div>
-                        <div class="admin-menu-builder-actions">
-                            @foreach (['header' => 'New Header', 'footer' => 'New Footer', 'block' => 'New Block'] as $type => $label)
-                                <form method="POST" action="{{ route('admin.pages.store') }}">
-                                    @csrf
-                                    <input type="hidden" name="content_type" value="{{ $type }}">
-                                    <button class="ainpa-button ainpa-button-compact">{{ $label }}</button>
-                                </form>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <div class="admin-menu-builder-grid">
-                        @foreach ($contentTypeLabels as $type => $label)
-                            <div class="admin-menu-builder-column">
-                                <h4 class="admin-menu-builder-title">{{ $label }}</h4>
-                                <div class="admin-menu-builder-list">
-                                    @forelse ($builderGroups->get($type, collect()) as $content)
-                                        <div class="admin-menu-builder-item">
-                                            <div>
-                                                <div class="admin-menu-builder-item-title">{{ $content->title }}</div>
-                                                <div class="admin-menu-builder-item-meta">{{ ucfirst($content->status) }} · {{ $content->updated_at }}</div>
-                                            </div>
-                                            <a href="{{ route('admin.pages.edit', $content->id) }}" class="admin-menu-inline-link">Edit</a>
-                                        </div>
-                                    @empty
-                                        <p class="admin-menu-empty-small">No {{ strtolower($label) }} yet.</p>
-                                    @endforelse
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </section>
-            @endif
         </div>
     </div>
 </x-app-layout>

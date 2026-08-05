@@ -4,146 +4,57 @@ namespace Modules\PageBuilder\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Platform\Core\Logs\OperationLogger;
-use App\Platform\Core\PageBuilder\BuilderSanitizer;
-use App\Platform\Core\PageBuilder\PageBuilderDynamicSourceRegistry;
-use App\Platform\Core\PageBuilder\PageBuilderRenderService;
-use App\Platform\Core\PageBuilder\PageBuilderWidgetRegistry;
-use App\Platform\Core\PageBuilder\TemplateEditableRenderer;
-use App\Platform\Core\Services\ActivePluginStylesheets;
+use App\Platform\Core\Rendering\PlatformContentRenderer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use InvalidArgumentException;
-use JsonException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Modules\PageBuilder\VvvebDocument;
 
 class PageController extends Controller
 {
-    private const BUILDER_SYNC_META_KEY = '_z4rank_builder_sync';
-
-    public function editorUiCss(): Response
-    {
-        $stylesheet = dirname(__DIR__, 4).'/resources/css/editor-ui.css';
-
-        abort_unless(is_file($stylesheet), 404);
-
-        return response((string) file_get_contents($stylesheet), 200, [
-            'Content-Type' => 'text/css; charset=UTF-8',
-            'Cache-Control' => 'public, max-age=3600',
-        ]);
-    }
-
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
         $pages = DB::table('platform_pages');
 
         if ($search !== '') {
-            $pages->where(function ($query) use ($search): void {
-                $query
-                    ->where('title', 'like', '%'.$search.'%')
-                    ->orWhere('slug', 'like', '%'.$search.'%')
-                    ->orWhere('content_type', 'like', '%'.$search.'%')
-                    ->orWhere('status', 'like', '%'.$search.'%')
-                    ->orWhere('seo_title', 'like', '%'.$search.'%');
-            });
+            $pages->where(fn ($query) => $query
+                ->where('title', 'like', '%'.$search.'%')
+                ->orWhere('slug', 'like', '%'.$search.'%')
+                ->orWhere('content_type', 'like', '%'.$search.'%'));
         }
 
         return view('page-builder::pages.index', [
-            'pages' => $pages
-                ->orderByRaw("CASE content_type WHEN 'page' THEN 1 WHEN 'header' THEN 2 WHEN 'footer' THEN 3 WHEN 'block' THEN 4 ELSE 9 END")
-                ->latest('updated_at')
-                ->latest('id')
-                ->get(),
+            'pages' => $pages->latest('updated_at')->latest('id')->get(),
             'search' => $search,
         ]);
     }
 
-    public function themeBuilder(): View
-    {
-        $selection = Schema::hasTable('page_builder_theme_settings')
-            ? DB::table('page_builder_theme_settings')->where('id', 1)->first()
-            : null;
-
-        return view('page-builder::pages.theme-builder', [
-            'selection' => $selection,
-            'headers' => $this->publishedDesigns('header'),
-            'bodies' => $this->publishedDesigns('page'),
-            'footers' => $this->publishedDesigns('footer'),
-        ]);
-    }
-
-    public function updateThemeBuilder(Request $request, OperationLogger $operations): RedirectResponse
-    {
-        abort_unless(Schema::hasTable('page_builder_theme_settings'), 503, 'Theme Builder database migration is pending.');
-
-        $data = $request->validate([
-            'header_page_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('platform_pages', 'id')
-                    ->where(fn ($query) => $query->where('content_type', 'header')->where('status', 'published')),
-            ],
-            'body_page_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('platform_pages', 'id')
-                    ->where(fn ($query) => $query->where('content_type', 'page')->where('status', 'published')),
-            ],
-            'footer_page_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('platform_pages', 'id')
-                    ->where(fn ($query) => $query->where('content_type', 'footer')->where('status', 'published')),
-            ],
-        ]);
-
-        $values = [
-            'header_page_id' => $data['header_page_id'] ?? null,
-            'body_page_id' => $data['body_page_id'] ?? null,
-            'footer_page_id' => $data['footer_page_id'] ?? null,
-            'updated_at' => now(),
-        ];
-
-        $selectionExists = DB::table('page_builder_theme_settings')->where('id', 1)->exists();
-
-        DB::table('page_builder_theme_settings')->updateOrInsert(
-            ['id' => 1],
-            $values + ($selectionExists ? [] : ['created_at' => now()]),
-        );
-
-        $operation = $operations->start('admin.pages.theme-builder.update', 'page-builder-theme', '1', $values, $request->user()?->id);
-        $operations->success($operation, 'Theme Builder frontend composition updated.');
-
-        return redirect()
-            ->route('admin.theme-builder.index')
-            ->with('status', 'Theme layout saved. The frontend now uses the selected Page Builder designs.');
-    }
-
     public function store(Request $request, OperationLogger $operations): RedirectResponse
     {
-        $contentType = $this->contentType($request->input('content_type', 'page'));
-        $title = 'Untitled '.ucfirst($contentType).' '.now()->format('Y-m-d H:i');
+        $type = $this->contentType((string) $request->input('content_type', 'page'));
+        $title = 'Untitled '.ucfirst($type).' '.now()->format('Y-m-d H:i');
         $slug = $this->uniqueSlug($title);
         $now = now();
-
-        $pageId = DB::table('platform_pages')->insertGetId([
+        $id = DB::table('platform_pages')->insertGetId([
             'title' => $title,
             'slug' => $slug,
-            'content_type' => $contentType,
-            'block_key' => $contentType === 'block' ? $slug : null,
+            'content_type' => $type,
+            'block_key' => $type === 'block' ? $slug : null,
             'parent_id' => null,
             'category' => null,
             'menu_label' => null,
             'show_in_menu' => false,
             'content' => null,
-            'page_builder_json' => null,
+            'vvvebjs_html' => null,
             'html' => null,
             'css' => null,
             'status' => 'draft',
@@ -155,192 +66,225 @@ class PageController extends Controller
             'updated_at' => $now,
         ]);
 
-        $operation = $operations->start('admin.pages.create-draft', 'platform-page', (string) $pageId, [
-            'slug' => $slug,
-            'status' => 'draft',
-            'content_type' => $contentType,
-        ], $request->user()?->id);
-        $operations->success($operation, 'Draft page created from admin pages.');
+        $operation = $operations->start('admin.vvvebjs.create', 'vvvebjs-page', (string) $id, ['type' => $type], $request->user()?->id);
+        $operations->success($operation, 'VvvebJs draft created.');
 
-        return redirect()
-            ->route('admin.pages.edit', $pageId)
-            ->with('status', 'Draft page created. You can start designing it now.');
+        return redirect()->route('admin.pages.edit', $id);
     }
 
-    public function edit(int $page, PageBuilderWidgetRegistry $widgets, PageBuilderDynamicSourceRegistry $dynamicSources, TemplateEditableRenderer $templateEditableRenderer): View
-    {
-        $pageRecord = $this->findPage($page);
-        $savedBlocks = $this->savedBlocks($pageRecord->id);
-        $simpleEditor = $templateEditableRenderer->editorState($pageRecord);
-        $fullBuilderAllowed = $this->canUseFullBuilder(request());
-
-        return view('page-builder::pages.edit', [
-            'page' => $pageRecord,
-            'builderProject' => $this->builderProject($pageRecord),
-            'editorCanvasHtml' => $this->editorCanvasHtml($pageRecord),
-            'editorCanvasCss' => $this->editorCanvasCss($pageRecord),
-            'builderWidgets' => array_values($widgets->widgetMap()),
-            'builderBlocks' => $widgets->blocks($savedBlocks),
-            'builderElementRegistry' => $widgets->elementRegistry(),
-            'builderDynamicSources' => $dynamicSources->editorSources(request()->user(), $pageRecord),
-            'revisions' => $this->revisionSummaries($pageRecord->id),
-            'simpleEditor' => $simpleEditor,
-            'simpleModeEnabled' => $simpleEditor['enabled'] && ! $fullBuilderAllowed,
-            'fullBuilderAllowed' => $fullBuilderAllowed,
-            'editorCanvasStyleUrls' => [
-                '/admin/pages/'.$pageRecord->id.'/editor-preview.css?v='.md5((string) ($pageRecord->updated_at ?? $pageRecord->id)),
-            ],
-            'previewUrl' => route('admin.pages.preview', $pageRecord->id),
-            'publicUrl' => $pageRecord->content_type === 'page'
-                ? route('pages.show', $pageRecord->slug)
-                : route('admin.pages.preview', $pageRecord->id),
-            'contentTypes' => $this->contentTypes(),
-            'parents' => $this->parentOptions($pageRecord->id),
-            'categories' => $this->categories(),
-        ]);
-    }
-
-    public function update(Request $request, int $page, OperationLogger $operations, BuilderSanitizer $sanitizer): RedirectResponse
-    {
-        $current = $this->findPage($page);
-        $data = $this->validated($request, $sanitizer);
-        $saved = $this->savePage($page, $current, $data, $request->user()?->id, 'manual-form-save');
-
-        $operation = $operations->start('admin.pages.update-builder', 'platform-page', (string) $page, [
-            'old_slug' => $current->slug,
-            'new_slug' => $saved['slug'],
-            'status' => $data['status'],
-            'content_type' => $data['content_type'],
-        ], $request->user()?->id);
-        $operations->success($operation, 'Page builder content saved.', [
-            'public_url' => $data['content_type'] === 'page' ? route('pages.show', $saved['slug']) : null,
-            'preview_url' => route('admin.pages.preview', $page),
+    public function legacyThemeStore(
+        Request $request,
+        VvvebDocument $documents,
+        OperationLogger $operations,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'template_type' => ['required', Rule::in([
+                'header', 'footer', 'single_post', 'single_page', 'archive', 'search_results', 'error_404',
+            ])],
+            'name' => ['nullable', 'string', 'max:160'],
+            'status' => ['nullable', Rule::in(['draft', 'published'])],
+            'template_file' => ['nullable', 'file', 'max:20480', 'mimes:json,html,htm,txt'],
         ]);
 
-        return redirect()
-            ->route('admin.pages.edit', $page)
-            ->with('status', 'Page saved successfully.');
-    }
+        $type = match ($data['template_type']) {
+            'header' => 'header',
+            'footer' => 'footer',
+            default => 'page',
+        };
+        $title = trim((string) ($data['name'] ?? '')) ?: 'Untitled '.ucfirst($type).' '.now()->format('Y-m-d H:i');
+        $slug = $this->uniqueSlug($title);
+        $status = (string) ($data['status'] ?? 'draft');
+        $source = $request->file('template_file')?->get();
+        $html = is_string($source) ? $source : '';
+        $css = '';
 
-    public function builderSave(Request $request, int $page, OperationLogger $operations, BuilderSanitizer $sanitizer): JsonResponse
-    {
-        $current = $this->findPage($page);
-        $data = $this->validated($request, $sanitizer);
-        $saved = $this->savePage($page, $current, $data, $request->user()?->id, 'manual-ajax-save');
-
-        $operation = $operations->start('admin.pages.builder-save', 'platform-page', (string) $page, [
-            'old_slug' => $current->slug,
-            'new_slug' => $saved['slug'],
-            'status' => $data['status'],
-            'content_type' => $data['content_type'],
-        ], $request->user()?->id);
-        $operations->success($operation, 'Page builder content saved through AJAX.', [
-            'public_url' => $saved['public_url'],
-            'preview_url' => route('admin.pages.preview', $page),
-        ]);
-
-        return response()->json([
-            'ok' => true,
-            'message' => 'Page saved successfully.',
-            'page' => [
-                'id' => $page,
-                'slug' => $saved['slug'],
-                'status' => $data['status'],
-                'public_url' => $saved['public_url'],
-                'updated_at' => $saved['updated_at'],
-            ],
-            'revisions' => $this->revisionSummaries($page),
-        ]);
-    }
-
-    public function autosave(Request $request, int $page, BuilderSanitizer $sanitizer): JsonResponse
-    {
-        $current = $this->findPage($page);
-        $data = $this->validated($request, $sanitizer);
-        $data['status'] = $current->status === 'published' ? 'published' : 'draft';
-
-        $saved = $this->savePage($page, $current, $data, $request->user()?->id, 'autosave', createRevision: false, preservePublishedAt: true);
-
-        return response()->json([
-            'ok' => true,
-            'message' => 'Autosaved.',
-            'page' => [
-                'id' => $page,
-                'slug' => $saved['slug'],
-                'status' => $data['status'],
-                'updated_at' => $saved['updated_at'],
-            ],
-        ]);
-    }
-
-    public function templateEditSave(Request $request, int $page, OperationLogger $operations, TemplateEditableRenderer $templateEditableRenderer, BuilderSanitizer $sanitizer): JsonResponse
-    {
-        $current = $this->findPage($page);
-        $project = $this->builderProject($current) ?? [];
-        $baseHtml = (string) ($current->html ?: $current->content ?: '');
-
-        try {
-            $payload = [
-                'editable_data' => $this->jsonInput($request, 'editable_data'),
-                'section_visibility' => $this->jsonInput($request, 'section_visibility'),
-                'section_order' => $this->jsonInput($request, 'section_order'),
-            ];
-
-            $project = $templateEditableRenderer->mergeEditablePayload($project, $payload, $baseHtml);
-            $renderedHtml = $templateEditableRenderer->render($baseHtml, $project);
-            $sanitized = $sanitizer->sanitize($renderedHtml, (string) ($current->css ?? ''), $this->allowsUnsafeBuilderMarkup($request));
-            $encodedProject = json_encode($project, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-        } catch (InvalidArgumentException $exception) {
-            return response()->json([
-                'ok' => false,
-                'message' => $exception->getMessage(),
-            ], 422);
-        } catch (JsonException $exception) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Editable template data could not be saved.',
-            ], 422);
+        if ($html !== '' && str_ends_with(strtolower((string) $request->file('template_file')?->getClientOriginalName()), '.json')) {
+            $payload = json_decode($html, true);
+            if (is_array($payload)) {
+                $html = (string) ($payload['html'] ?? data_get($payload, 'template.html', ''));
+                $css = (string) ($payload['css'] ?? data_get($payload, 'template.css', ''));
+            }
         }
 
-        $data = [
-            'title' => (string) $current->title,
-            'slug' => (string) $current->slug,
-            'content_type' => (string) ($current->content_type ?? 'page'),
-            'block_key' => $current->block_key ?? null,
-            'status' => (string) ($current->status ?? 'draft'),
-            'sort_order' => (int) ($current->sort_order ?? 0),
-            'seo_title' => $current->seo_title ?? null,
-            'meta_description' => $current->meta_description ?? null,
-            'page_builder_json' => $encodedProject,
-            'html' => $sanitized['html'],
-            'css' => $sanitized['css'],
+        $document = $documents->normalize($documents->blank($title, $html, $css), $title);
+        $now = now();
+        $id = DB::table('platform_pages')->insertGetId([
+            'title' => $title,
+            'slug' => $slug,
+            'content_type' => $type,
+            'block_key' => null,
+            'parent_id' => null,
+            'category' => 'migrated-theme-builder-request',
+            'menu_label' => null,
+            'show_in_menu' => false,
+            'content' => $documents->body($document),
+            'vvvebjs_html' => $document,
+            'html' => $documents->body($document),
+            'css' => $documents->css($document),
+            'status' => $status,
+            'sort_order' => 0,
+            'seo_title' => null,
+            'meta_description' => $request->string('description')->trim()->value() ?: null,
+            'published_at' => $status === 'published' ? $now : null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $operation = $operations->start('admin.vvvebjs.legacy-theme-create', 'vvvebjs-page', (string) $id, [
+            'legacy_template_type' => $data['template_type'],
+            'content_type' => $type,
+        ], $request->user()?->id);
+        $operations->success($operation, 'Legacy Theme Builder request migrated to VvvebJs.');
+
+        return redirect()->route('admin.pages.edit', $id);
+    }
+
+    public function edit(int $page, PlatformContentRenderer $renderer): Response
+    {
+        $record = $this->findPage($page);
+        $template = dirname(__DIR__, 4).'/resources/vvvebjs/editor.html';
+        abort_unless(is_file($template), 503, 'VvvebJs assets are not installed.');
+        $assetBase = url('/page-builder-assets/v5');
+
+        $config = [
+            'csrfToken' => csrf_token(),
+            'page' => [
+                'id' => $record->id,
+                'title' => $record->title,
+                'slug' => $record->slug,
+                'contentType' => $record->content_type ?? 'page',
+                'status' => $record->status,
+                'seoTitle' => $record->seo_title,
+                'metaDescription' => $record->meta_description,
+                'blockKey' => $record->block_key ?? null,
+                'sortOrder' => (int) ($record->sort_order ?? 0),
+                'documentVersion' => $this->documentVersion($record),
+            ],
+            'pages' => [
+                'current' => [
+                    'name' => 'current',
+                    'filename' => $record->slug.'.html',
+                    'file' => $record->slug.'.html',
+                    'url' => route('admin.pages.vvveb-canvas', $record->id),
+                    'title' => $record->title,
+                    'folder' => null,
+                ],
+            ],
+            'saveUrl' => route('admin.pages.vvveb-save', $record->id),
+            'previewUrl' => route('admin.pages.preview', $record->id),
+            'indexUrl' => route('admin.pages.index'),
+            'assetBase' => $assetBase,
+            'mediaUrl' => route('admin.pages.vvveb-media'),
+            'mediaUploadUrl' => route('admin.media.store'),
+            'revisionsUrl' => route('admin.pages.vvveb-revisions', $record->id),
+            'reusableUrl' => route('admin.pages.vvveb-reusable'),
+            'frontendMenus' => $renderer->menuTraitOptions(),
+            'frontendMenuItems' => $renderer->menuPreviewItems(request()->user()),
+            'reusables' => DB::table('platform_pages')->where('content_type', 'block')->orderBy('title')->get(['id', 'title', 'html', 'category'])->map(fn (object $block): array => [
+                'id' => $block->id,
+                'name' => $block->title,
+                'html' => (string) $block->html,
+                'type' => $block->category === 'vvvebjs-reusable-section' ? 'section' : 'block',
+            ])->all(),
         ];
 
-        $saved = $this->savePage($page, $current, $data, $request->user()?->id, 'simple-template-edit-save');
-        $operation = $operations->start('admin.pages.simple-template-save', 'platform-page', (string) $page, [
-            'slug' => $saved['slug'],
-            'template_key' => $project['template_key'] ?? null,
-        ], $request->user()?->id);
-        $operations->success($operation, 'Simple template editable data saved.', [
-            'preview_url' => route('admin.pages.preview', $page),
+        $html = (string) file_get_contents($template);
+        $encodedConfig = json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $html = str_replace('<base href="">', '<base href="'.$assetBase.'/">', $html);
+        $html = str_replace('</head>', '<script>window.ArtInpaVvvebConfig='.$encodedConfig.';</script><link rel="stylesheet" href="'.$assetBase.'/integration/css/vvveb-integration.css"></head>', $html);
+        $html = str_replace('data-vvveb-url="save.php"', 'data-vvveb-url="'.e($config['saveUrl']).'"', $html);
+        $html = str_replace("window.mediaPath = '../../media';", "window.mediaPath = '/';", $html);
+        $html = str_replace("Vvveb.themeBaseUrl = 'demo/landing/';", "Vvveb.themeBaseUrl = '".$assetBase."/demo/landing/';", $html);
+        $html = str_replace("let saveReusableUrl = 'save.php?action=saveReusable';", "let saveReusableUrl = '".$config['reusableUrl']."';", $html);
+        $html = str_replace('let pages = defaultPages;', 'let pages = window.ArtInpaVvvebConfig.pages;', $html);
+        $html = str_replace('</body>', '<script src="'.$assetBase.'/integration/js/vvveb-integration.js"></script></body>', $html);
+
+        return response($html)->header('Content-Type', 'text/html; charset=UTF-8')->header('Cache-Control', 'no-store');
+    }
+
+    public function canvas(int $page, VvvebDocument $documents): Response
+    {
+        return response($documents->fromPage($this->findPage($page)))
+            ->header('Content-Type', 'text/html; charset=UTF-8')
+            ->header('Cache-Control', 'no-store');
+    }
+
+    public function save(Request $request, int $page, VvvebDocument $documents, OperationLogger $operations): JsonResponse
+    {
+        $record = $this->findPage($page);
+        $data = $request->validate([
+            'html' => ['required', 'string', 'max:16000000'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'slug' => ['nullable', 'string', 'max:255'],
+            'content_type' => ['nullable', Rule::in(['page', 'header', 'footer', 'block'])],
+            'status' => ['nullable', Rule::in(['draft', 'published'])],
+            'seo_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:1000'],
+            'block_key' => ['nullable', 'string', 'max:255'],
+            'sort_order' => ['nullable', 'integer', 'between:-100000,100000'],
+            'autosave' => ['nullable', 'boolean'],
+            'document_version' => ['nullable', 'string', 'size:64'],
         ]);
 
-        return response()->json([
-            'ok' => true,
-            'message' => 'Template content saved.',
-            'page' => [
-                'id' => $page,
-                'slug' => $saved['slug'],
-                'status' => $data['status'],
-                'updated_at' => $saved['updated_at'],
-            ],
-            'simple_editor' => $templateEditableRenderer->editorState((object) array_merge((array) $current, [
-                'page_builder_json' => $encodedProject,
-                'html' => $sanitized['html'],
-                'content' => $sanitized['html'],
-            ])),
-            'revisions' => $this->revisionSummaries($page),
+        if (! is_string($data['document_version'] ?? null)
+            || ! hash_equals($this->documentVersion($record), $data['document_version'])) {
+            return response()->json([
+                'success' => false,
+                'stale' => true,
+                'message' => 'This page changed after the editor was opened. Reload before saving to avoid overwriting newer content.',
+            ], 409);
+        }
+
+        $document = $documents->normalize($data['html'], (string) ($data['title'] ?? $record->title));
+        $title = trim((string) ($data['title'] ?? $record->title)) ?: (string) $record->title;
+        $slug = $this->uniqueSlug((string) ($data['slug'] ?? $record->slug), $page);
+        $type = $this->contentType((string) ($data['content_type'] ?? $record->content_type ?? 'page'));
+        $status = (string) ($data['status'] ?? $record->status ?? 'draft');
+        $now = now();
+
+        if (! $request->boolean('autosave')) {
+            DB::table('vvvebjs_page_revisions')->insert([
+                'page_id' => $page,
+                'title' => $record->title,
+                'vvvebjs_html' => $record->vvvebjs_html,
+                'created_by' => $request->user()?->id,
+                'created_at' => $now,
+            ]);
+        }
+
+        DB::table('platform_pages')->where('id', $page)->update([
+            'title' => $title,
+            'slug' => $slug,
+            'content_type' => $type,
+            'block_key' => $type === 'block' ? ($data['block_key'] ?? $record->block_key ?? $slug) : null,
+            'vvvebjs_html' => $document,
+            'html' => $documents->body($document),
+            'content' => $documents->body($document),
+            'css' => $documents->css($document),
+            'status' => $status,
+            'sort_order' => (int) ($data['sort_order'] ?? $record->sort_order ?? 0),
+            'seo_title' => $data['seo_title'] ?? $record->seo_title,
+            'meta_description' => $data['meta_description'] ?? $record->meta_description,
+            'published_at' => $status === 'published' ? ($record->published_at ?: $now) : null,
+            'updated_at' => $now,
         ]);
+
+        if (! $request->boolean('autosave')) {
+            $operation = $operations->start('admin.vvvebjs.save', 'vvvebjs-page', (string) $page, ['status' => $status, 'type' => $type], $request->user()?->id);
+            $operations->success($operation, 'VvvebJs document saved.');
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $request->boolean('autosave') ? 'Autosaved' : 'Page saved',
+            'updated_at' => $now->toIso8601String(),
+            'document_version' => hash('sha256', $page.'|'.$now->toDateTimeString().'|'.$document),
+        ]);
+    }
+
+    public function preview(int $page): View
+    {
+        return view('page-builder::public.show', ['page' => $this->findPage($page), 'isPreview' => true]);
     }
 
     public function revisions(int $page): JsonResponse
@@ -348,796 +292,158 @@ class PageController extends Controller
         $this->findPage($page);
 
         return response()->json([
-            'ok' => true,
-            'revisions' => $this->revisionSummaries($page),
+            'revisions' => DB::table('vvvebjs_page_revisions')->where('page_id', $page)->latest('id')->limit(20)->get()->map(fn (object $revision): array => [
+                'id' => $revision->id,
+                'title' => $revision->title,
+                'created_at' => $revision->created_at,
+                'restore_url' => route('admin.pages.vvveb-revisions.restore', [$page, $revision->id]),
+            ])->all(),
         ]);
     }
 
-    public function restoreRevision(Request $request, int $page, int $revision, OperationLogger $operations): JsonResponse
+    public function restoreRevision(Request $request, int $page, int $revision, VvvebDocument $documents): JsonResponse
     {
-        $current = $this->findPage($page);
-        $revisionRecord = DB::table('platform_page_revisions')
-            ->where('id', $revision)
-            ->where('page_id', $page)
-            ->first();
+        $this->findPage($page);
+        $snapshot = DB::table('vvvebjs_page_revisions')->where('page_id', $page)->where('id', $revision)->first();
+        abort_unless($snapshot, 404);
+        $document = $documents->normalize((string) $snapshot->vvvebjs_html, (string) $snapshot->title);
+        DB::table('platform_pages')->where('id', $page)->update([
+            'vvvebjs_html' => $document,
+            'html' => $documents->body($document),
+            'content' => $documents->body($document),
+            'css' => $documents->css($document),
+            'updated_at' => now(),
+        ]);
 
-        abort_unless($revisionRecord, 404);
+        return response()->json(['success' => true, 'message' => 'Revision restored.']);
+    }
 
-        $meta = is_string($revisionRecord->meta ?? null) ? json_decode($revisionRecord->meta, true) : [];
-        $meta = is_array($meta) ? $meta : [];
+    public function reusable(Request $request, VvvebDocument $documents): JsonResponse
+    {
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['section', 'block'])],
+            'name' => ['required', 'string', 'max:255'],
+            'html' => ['required', 'string', 'max:4000000'],
+        ]);
+        $slug = $this->uniqueSlug($data['name']);
+        $html = $documents->sanitizeFragment($data['html']);
+        $now = now();
+        $id = DB::table('platform_pages')->insertGetId([
+            'title' => $data['name'], 'slug' => $slug, 'content_type' => 'block', 'block_key' => $slug,
+            'parent_id' => null, 'category' => 'vvvebjs-reusable-'.$data['type'], 'menu_label' => null, 'show_in_menu' => false,
+            'content' => $html, 'vvvebjs_html' => $documents->blank($data['name'], $html), 'html' => $html, 'css' => null,
+            'status' => 'published', 'sort_order' => 0, 'seo_title' => null, 'meta_description' => null, 'published_at' => $now,
+            'created_at' => $now, 'updated_at' => $now,
+        ]);
 
-        $syncedProjectJson = $this->syncedBuilderProjectJson(
-            is_string($revisionRecord->page_builder_json ?? null) ? $revisionRecord->page_builder_json : '',
-            (string) ($revisionRecord->html ?? ''),
-            (string) ($revisionRecord->css ?? ''),
-        );
+        return response()->json(['success' => true, 'message' => 'Reusable '.$data['type'].' saved.', 'id' => $id]);
+    }
 
-        DB::transaction(function () use ($page, $current, $revisionRecord, $meta, $request, $syncedProjectJson): void {
-            $this->createRevisionSnapshot($current, $request->user()?->id, 'before-revision-restore');
+    public function media(): JsonResponse
+    {
+        $files = collect(Storage::disk('public')->allFiles())->map(fn (string $path): array => [
+            'name' => basename($path),
+            'type' => 'file',
+            'path' => 'storage/'.$path,
+            'size' => Storage::disk('public')->size($path),
+        ])->values()->all();
 
-            DB::table('platform_pages')->where('id', $page)->update([
-                'title' => $revisionRecord->title,
-                'content' => $revisionRecord->html,
-                'html' => $revisionRecord->html,
-                'css' => $revisionRecord->css,
-                'page_builder_json' => $syncedProjectJson,
-                'seo_title' => $meta['seo_title'] ?? $current->seo_title,
-                'meta_description' => $meta['meta_description'] ?? $current->meta_description,
-                'parent_id' => $meta['parent_id'] ?? $current->parent_id,
-                'category' => $meta['category'] ?? $current->category,
-                'menu_label' => $meta['menu_label'] ?? $current->menu_label,
-                'show_in_menu' => $meta['show_in_menu'] ?? $current->show_in_menu,
-                'updated_at' => now(),
-            ]);
+        return response()->json(['name' => 'storage', 'type' => 'folder', 'path' => 'storage', 'items' => $files]);
+    }
+
+    public function themeBuilder(): View
+    {
+        $sections = Schema::hasTable('vvvebjs_layout_sections')
+            ? DB::table('vvvebjs_layout_sections')->orderBy('sort_order')->orderBy('id')->get()->groupBy('placement')
+            : collect();
+
+        return view('page-builder::pages.layout', [
+            'designs' => $this->publishedDesigns(),
+            'selectedHeaders' => $sections->get('header', collect())->pluck('page_id')->map(fn ($id): int => (int) $id)->values()->all(),
+            'selectedFooters' => $sections->get('footer', collect())->pluck('page_id')->map(fn ($id): int => (int) $id)->values()->all(),
+        ]);
+    }
+
+    public function updateThemeBuilder(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'headers' => ['nullable', 'array', 'max:50'],
+            'headers.*' => ['required', 'integer', 'distinct', Rule::exists('platform_pages', 'id')->where(fn ($query) => $query->where('status', 'published')->where('content_type', '!=', 'block'))],
+            'footers' => ['nullable', 'array', 'max:50'],
+            'footers.*' => ['required', 'integer', 'distinct', Rule::exists('platform_pages', 'id')->where(fn ($query) => $query->where('status', 'published')->where('content_type', '!=', 'block'))],
+        ]);
+
+        DB::transaction(function () use ($data): void {
+            DB::table('vvvebjs_layout_sections')->delete();
+
+            foreach (['header' => $data['headers'] ?? [], 'footer' => $data['footers'] ?? []] as $placement => $pageIds) {
+                foreach (array_values($pageIds) as $sortOrder => $pageId) {
+                    DB::table('vvvebjs_layout_sections')->insert([
+                        'placement' => $placement,
+                        'page_id' => $pageId,
+                        'sort_order' => $sortOrder,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
         });
 
-        $operation = $operations->start('admin.pages.restore-revision', 'platform-page', (string) $page, [
-            'revision_id' => $revision,
-        ], $request->user()?->id);
-        $operations->success($operation, 'Page builder revision restored.');
-
-        return response()->json([
-            'ok' => true,
-            'message' => 'Revision restored.',
-            'revisions' => $this->revisionSummaries($page),
-        ]);
+        return back()->with('status', 'Theme Layout saved in the selected order.');
     }
 
-    public function exportTemplate(int $page): StreamedResponse
+    public function destroy(int $page): RedirectResponse
     {
-        $pageRecord = $this->findPage($page);
-        $project = $this->builderProject($pageRecord);
-        $payload = [
-            'schema_version' => 'page-builder-template/v1',
-            'exported_at' => now()->toIso8601String(),
-            'source' => [
-                'id' => (int) $pageRecord->id,
-                'title' => (string) $pageRecord->title,
-                'slug' => (string) $pageRecord->slug,
-                'content_type' => (string) ($pageRecord->content_type ?? 'page'),
-            ],
-            'template' => [
-                'page_builder_json' => $project,
-                'html' => (string) ($pageRecord->html ?? $pageRecord->content ?? ''),
-                'css' => (string) ($pageRecord->css ?? ''),
-                'editable_schema' => is_array($project) ? ($project['editable_schema'] ?? null) : null,
-            ],
-        ];
-        $filename = Str::slug((string) $pageRecord->title ?: 'page').'-template-'.now()->format('Ymd-His').'.json';
-
-        return response()->streamDownload(function () use ($payload): void {
-            echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-        }, $filename, [
-            'Content-Type' => 'application/json; charset=UTF-8',
-        ]);
-    }
-
-    public function importTemplate(Request $request, int $page, OperationLogger $operations, BuilderSanitizer $sanitizer): RedirectResponse
-    {
-        $current = $this->findPage($page);
-        $validated = $request->validate([
-            'template_file' => ['required', 'file', 'max:5120'],
-        ]);
-        $uploaded = $validated['template_file'];
-        $contents = file_get_contents($uploaded->getRealPath());
-
-        if (! is_string($contents) || trim($contents) === '') {
-            return back()->withErrors(['template_file' => 'Template file is empty.']);
-        }
-
-        try {
-            $payload = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
-            if (! is_array($payload)) {
-                throw new InvalidArgumentException('Template JSON must contain an object.');
-            }
-
-            [$project, $html, $css] = $this->templateContentFromPayload($payload);
-            $sanitized = $sanitizer->sanitize($html, $css, $this->allowsUnsafeBuilderMarkup($request));
-            $data = [
-                'title' => (string) $current->title,
-                'slug' => (string) $current->slug,
-                'content_type' => (string) ($current->content_type ?? 'page'),
-                'block_key' => $current->block_key ?? null,
-                'status' => (string) $current->status,
-                'sort_order' => (int) ($current->sort_order ?? 0),
-                'seo_title' => $current->seo_title ?? null,
-                'meta_description' => $current->meta_description ?? null,
-                'page_builder_json' => $project !== null
-                    ? json_encode($project, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
-                    : '',
-                'html' => $sanitized['html'],
-                'css' => $sanitized['css'],
-            ];
-        } catch (JsonException $exception) {
-            return back()->withErrors(['template_file' => 'Template file is not valid JSON.']);
-        } catch (InvalidArgumentException $exception) {
-            return back()->withErrors(['template_file' => $exception->getMessage()]);
-        }
-
-        $saved = $this->savePage($page, $current, $data, $request->user()?->id, 'template-import');
-        $operation = $operations->start('admin.pages.import-template', 'platform-page', (string) $page, [
-            'slug' => $saved['slug'],
-            'has_project' => $data['page_builder_json'] !== '',
-            'has_html' => $data['html'] !== '',
-            'has_css' => $data['css'] !== '',
-        ], $request->user()?->id);
-        $operations->success($operation, 'Page builder template imported.');
-
-        return redirect()
-            ->route('admin.pages.edit', $page)
-            ->with('status', 'Template imported successfully.');
-    }
-
-    public function preview(int $page): View
-    {
-        return view('page-builder::public.show', [
-            'page' => $this->findPage($page),
-            'isPreview' => true,
-        ]);
-    }
-
-    public function editorPreviewCss(int $page): Response
-    {
-        $pageRecord = $this->findPage($page);
-
-        return response($this->editorCanvasCss($pageRecord), 200, [
-            'Content-Type' => 'text/css; charset=UTF-8',
-            'Cache-Control' => 'no-store, private',
-        ]);
-    }
-
-    public function editorComponentPreview(Request $request, int $page, PageBuilderRenderService $renderer, BuilderSanitizer $sanitizer): JsonResponse
-    {
-        $pageRecord = $this->findPage($page);
-        $data = $request->validate([
-            'html' => ['required', 'string'],
-        ]);
-
-        $rendered = $renderer->renderHtml($data['html'], $pageRecord);
-        $safe = $sanitizer->sanitize($rendered, '', false);
-
-        return response()->json([
-            'ok' => true,
-            'html' => $safe['html'],
-            'inner_html' => $this->firstElementInnerHtml($safe['html']),
-        ]);
-    }
-
-    public function destroy(Request $request, int $page, OperationLogger $operations): RedirectResponse
-    {
-        $current = $this->findPage($page);
-
         DB::table('platform_pages')->where('id', $page)->delete();
 
-        $operation = $operations->start('admin.pages.delete', 'platform-page', (string) $page, [
-            'slug' => $current->slug,
-            'title' => $current->title,
-        ], $request->user()?->id);
-        $operations->success($operation, 'Page deleted from admin pages.');
-
-        return back()->with('status', 'Page removed successfully.');
+        return redirect()->route('admin.pages.index')->with('status', 'VvvebJs page deleted.');
     }
 
-    public function bulkDestroy(Request $request, OperationLogger $operations): RedirectResponse
+    public function bulkDestroy(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'pages' => ['required', 'array', 'min:1'],
-            'pages.*' => ['integer', 'distinct', 'exists:platform_pages,id'],
-        ]);
-
-        $ids = collect($data['pages'])
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
-
-        $pages = DB::table('platform_pages')
-            ->whereIn('id', $ids)
-            ->get(['id', 'title', 'slug', 'content_type', 'status']);
-
+        $ids = $request->validate(['pages' => ['required', 'array'], 'pages.*' => ['integer']])['pages'];
         DB::table('platform_pages')->whereIn('id', $ids)->delete();
 
-        $operation = $operations->start('admin.pages.bulk-delete', 'platform-page', 'bulk', [
-            'count' => $pages->count(),
-            'ids' => $pages->pluck('id')->values()->all(),
-            'slugs' => $pages->pluck('slug')->values()->all(),
-        ], $request->user()?->id);
-        $operations->success($operation, 'Pages bulk deleted from admin pages.');
-
-        return back()->with('status', $pages->count().' pages removed successfully.');
+        return back()->with('status', count($ids).' page(s) deleted.');
     }
 
-    /**
-     * @return array{title:string,slug:?string,content_type:string,block_key:?string,status:string,sort_order:int,seo_title:?string,meta_description:?string,page_builder_json:string,html:string,css:string}
-     */
-    private function validated(Request $request, BuilderSanitizer $sanitizer): array
+    private function findPage(int $id): object
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255'],
-            'content_type' => ['required', 'in:page,header,footer,block'],
-            'block_key' => ['nullable', 'string', 'max:255', 'regex:/^[A-Za-z0-9_.:-]+$/'],
-            'status' => ['required', 'in:draft,published'],
-            'sort_order' => ['nullable', 'integer', 'min:-10000', 'max:10000'],
-            'parent_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('platform_pages', 'id')->where('content_type', 'page'),
-                Rule::notIn(array_filter([(int) $request->route('page')])),
-            ],
-            'category' => ['nullable', 'string', 'max:120'],
-            'menu_label' => ['nullable', 'string', 'max:255'],
-            'show_in_menu' => ['nullable', 'boolean'],
-            'seo_title' => ['nullable', 'string', 'max:255'],
-            'meta_description' => ['nullable', 'string', 'max:500'],
-            'page_builder_json' => ['nullable', 'string'],
-            'html' => ['nullable', 'string'],
-            'css' => ['nullable', 'string'],
-        ]) + [
-            'page_builder_json' => '',
-            'html' => '',
-            'css' => '',
-        ];
+        $page = DB::table('platform_pages')->where('id', $id)->first();
+        abort_unless($page, 404);
 
-        $data['content_type'] = $this->contentType($data['content_type']);
-        $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
-        $data['parent_id'] = $data['content_type'] === 'page' ? ($data['parent_id'] ?? null) : null;
-        $data['show_in_menu'] = $data['content_type'] === 'page' && $request->boolean('show_in_menu');
-        $sanitized = $sanitizer->sanitize(
-            $data['html'],
-            $data['css'],
-            $this->allowsUnsafeBuilderMarkup($request),
-        );
-        $data['html'] = $sanitized['html'];
-        $data['css'] = $sanitized['css'];
-
-        return $data;
+        return $page;
     }
 
-    /**
-     * @param  array{title:string,slug:?string,content_type:string,block_key:?string,status:string,sort_order:int,seo_title:?string,meta_description:?string,page_builder_json:string,html:string,css:string}  $data
-     * @return array{slug:string,updated_at:string,public_url:?string}
-     */
-    private function savePage(
-        int $page,
-        object $current,
-        array $data,
-        ?int $userId,
-        string $reason,
-        bool $createRevision = true,
-        bool $preservePublishedAt = false,
-    ): array {
-        $slug = $this->uniqueSlug($data['slug'] ?: $data['title'], $page);
-        $now = now();
-        $publishedAt = $preservePublishedAt
-            ? $current->published_at
-            : ($data['status'] === 'published' ? ($current->published_at ?? $now) : null);
-
-        $syncedProjectJson = $this->syncedBuilderProjectJson($data['page_builder_json'], $data['html'], $data['css']);
-
-        DB::transaction(function () use ($page, $current, $data, $slug, $now, $publishedAt, $userId, $reason, $createRevision, $syncedProjectJson): void {
-            if ($createRevision) {
-                $this->createRevisionSnapshot($current, $userId, $reason);
-            }
-
-            DB::table('platform_pages')->where('id', $page)->update([
-                'title' => $data['title'],
-                'slug' => $slug,
-                'content_type' => $data['content_type'],
-                'block_key' => $data['content_type'] === 'block' ? ($data['block_key'] ?: $slug) : null,
-                'parent_id' => $data['parent_id'],
-                'category' => $data['category'] ?? null,
-                'menu_label' => $data['menu_label'] ?? null,
-                'show_in_menu' => $data['show_in_menu'],
-                'content' => $data['html'] !== '' ? $data['html'] : null,
-                'page_builder_json' => $syncedProjectJson,
-                'html' => $data['html'] !== '' ? $data['html'] : null,
-                'css' => $data['css'] !== '' ? $data['css'] : null,
-                'status' => $data['status'],
-                'sort_order' => $data['sort_order'],
-                'seo_title' => $data['seo_title'] ?? null,
-                'meta_description' => $data['meta_description'] ?? null,
-                'published_at' => $publishedAt,
-                'updated_at' => $now,
-            ]);
-        });
-
-        return [
-            'slug' => $slug,
-            'updated_at' => $now->toDateTimeString(),
-            'public_url' => $data['content_type'] === 'page' ? route('pages.show', $slug) : null,
-        ];
-    }
-
-    private function createRevisionSnapshot(object $page, ?int $userId, string $reason): void
+    private function documentVersion(object $page): string
     {
-        if (! Schema::hasTable('platform_page_revisions')) {
-            return;
-        }
-
-        DB::table('platform_page_revisions')->insert([
-            'page_id' => $page->id,
-            'title' => $page->title,
-            'html' => $page->html,
-            'css' => $page->css,
-            'page_builder_json' => $page->page_builder_json,
-            'meta' => json_encode([
-                'reason' => $reason,
-                'slug' => $page->slug,
-                'content_type' => $page->content_type ?? 'page',
-                'block_key' => $page->block_key ?? null,
-                'parent_id' => $page->parent_id ?? null,
-                'category' => $page->category ?? null,
-                'menu_label' => $page->menu_label ?? null,
-                'show_in_menu' => (bool) ($page->show_in_menu ?? false),
-                'status' => $page->status,
-                'sort_order' => $page->sort_order ?? 0,
-                'seo_title' => $page->seo_title ?? null,
-                'meta_description' => $page->meta_description ?? null,
-                'published_at' => $page->published_at ?? null,
-            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            'created_by' => $userId,
-            'created_at' => now(),
-        ]);
+        return hash('sha256', $page->id.'|'.$page->updated_at.'|'.(string) ($page->vvvebjs_html ?? ''));
     }
 
-    /**
-     * @return array<int, array{id:int,title:string,created_at:string,created_by:?int,restore_url:string,meta:array<string, mixed>}>
-     */
-    private function revisionSummaries(int $pageId): array
+    private function contentType(string $value): string
     {
-        if (! Schema::hasTable('platform_page_revisions')) {
-            return [];
-        }
-
-        return DB::table('platform_page_revisions')
-            ->where('page_id', $pageId)
-            ->latest('created_at')
-            ->latest('id')
-            ->limit(10)
-            ->get(['id', 'title', 'created_at', 'created_by', 'meta'])
-            ->map(fn (object $revision): array => [
-                'id' => (int) $revision->id,
-                'title' => (string) $revision->title,
-                'created_at' => (string) $revision->created_at,
-                'created_by' => $revision->created_by ? (int) $revision->created_by : null,
-                'restore_url' => route('admin.pages.revisions.restore', [$pageId, $revision->id]),
-                'meta' => is_string($revision->meta) && json_decode($revision->meta, true)
-                    ? json_decode($revision->meta, true)
-                    : [],
-            ])
-            ->all();
+        return in_array($value, ['page', 'header', 'footer', 'block'], true) ? $value : 'page';
     }
 
-    private function allowsUnsafeBuilderMarkup(Request $request): bool
-    {
-        $user = $request->user();
-
-        return $user && method_exists($user, 'hasRole') && $user->hasRole('super-admin');
-    }
-
-    private function canUseFullBuilder(Request $request): bool
-    {
-        $user = $request->user();
-
-        if (! $user || ! method_exists($user, 'hasRole')) {
-            return false;
-        }
-
-        foreach (['super-admin', 'admin'] as $role) {
-            if ($user->hasRole($role)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function editorCanvasCss(object $page): string
-    {
-        $html = (string) ($page->html ?: $page->content ?: '');
-        $chunks = [(string) ($page->css ?? '')];
-        $classTokens = $this->htmlClassTokens($html);
-
-        if ($classTokens !== []) {
-            foreach (app(ActivePluginStylesheets::class)->files() as $cssFile) {
-                $content = file_get_contents($cssFile);
-
-                if (! is_string($content) || trim($content) === '') {
-                    continue;
-                }
-
-                foreach ($classTokens as $classToken) {
-                    if (str_contains($content, '.'.$classToken)) {
-                        $chunks[] = "\n/* Editor preview asset: ".basename($cssFile)." */\n".$content;
-                        break;
-                    }
-                }
-            }
-        }
-
-        return trim(implode("\n\n", array_filter($chunks, fn (string $chunk): bool => trim($chunk) !== '')));
-    }
-
-    private function editorCanvasHtml(object $page): string
-    {
-        $html = (string) ($page->html ?: $page->content ?: '');
-
-        if ($html === '' || ! str_contains($html, 'data-art-news-element')) {
-            return $html;
-        }
-
-        try {
-            $renderer = app(PageBuilderRenderService::class);
-        } catch (\Throwable) {
-            return $html;
-        }
-
-        return preg_replace_callback(
-            '~(?P<open><(?P<tag>section|div|article)(?P<attrs>[^>]*)\sdata-art-news-element=(["\'])(?P<element>.*?)\4(?P<attrs2>[^>]*)>)(?P<body>.*?)(?P<close></\2>)~is',
-            function (array $matches) use ($renderer, $page): string {
-                $source = (string) ($matches[0] ?? '');
-                $attrs = (string) (($matches['attrs'] ?? '').' '.($matches['attrs2'] ?? ''));
-
-                if (str_contains($attrs, 'data-pb-source-type="static"') || str_contains($attrs, "data-pb-source-type='static'")) {
-                    return $source;
-                }
-
-                try {
-                    $rendered = $renderer->renderHtml($source, $page);
-                    $inner = $this->firstElementInnerHtml($rendered);
-                } catch (\Throwable) {
-                    return $source;
-                }
-
-                if (trim($inner) === '') {
-                    return $source;
-                }
-
-                return (string) ($matches['open'] ?? '').$inner.(string) ($matches['close'] ?? '');
-            },
-            $html,
-        ) ?? $html;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function htmlClassTokens(string $html): array
-    {
-        preg_match_all('/class\s*=\s*(["\'])(.*?)\1/is', $html, $matches);
-        $tokens = [];
-
-        foreach ($matches[2] ?? [] as $classList) {
-            foreach (preg_split('/\s+/', trim((string) $classList)) ?: [] as $token) {
-                $token = trim($token);
-
-                if ($token !== '' && preg_match('/^[A-Za-z0-9_-]+$/', $token)) {
-                    $tokens[$token] = $token;
-                }
-            }
-        }
-
-        return array_values($tokens);
-    }
-
-    private function firstElementInnerHtml(string $html): string
-    {
-        $html = trim($html);
-
-        if (preg_match('/^<([a-z][a-z0-9:-]*)(?:\s[^>]*)?>(.*)<\/\1>$/is', $html, $matches)) {
-            return (string) ($matches[2] ?? '');
-        }
-
-        return $html;
-    }
-
-    /**
-     * @return array<string|int, mixed>
-     */
-    private function jsonInput(Request $request, string $key): array
-    {
-        $value = $request->input($key, []);
-
-        if (is_array($value)) {
-            return $value;
-        }
-
-        if (! is_string($value) || trim($value) === '') {
-            return [];
-        }
-
-        $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
-
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    private function findPage(int $page): object
-    {
-        $record = DB::table('platform_pages')->where('id', $page)->first();
-        abort_unless($record, 404);
-
-        return $record;
-    }
-
-    private function builderProject(object $page): ?array
-    {
-        if (! is_string($page->page_builder_json ?? null) || $page->page_builder_json === '') {
-            return null;
-        }
-
-        $project = json_decode($page->page_builder_json, true);
-
-        $project = $this->normalizeBuilderProject($project);
-
-        if ($project === null || ! $this->builderProjectMatchesSavedContent($project, $page)) {
-            return null;
-        }
-
-        return $project;
-    }
-
-    private function syncedBuilderProjectJson(string $projectJson, string $html, string $css): ?string
-    {
-        $projectJson = trim($projectJson);
-
-        if ($projectJson === '') {
-            return null;
-        }
-
-        try {
-            $project = json_decode($projectJson, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return $projectJson;
-        }
-
-        if (! is_array($project)) {
-            return $projectJson;
-        }
-
-        $project[self::BUILDER_SYNC_META_KEY] = [
-            'content_hash' => $this->builderContentHash($html, $css),
-            'synced_at' => now()->toIso8601String(),
-        ];
-
-        try {
-            return json_encode($project, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return $projectJson;
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $project
-     */
-    private function builderProjectMatchesSavedContent(array $project, object $page): bool
-    {
-        $html = (string) ($page->html ?? $page->content ?? '');
-        $css = (string) ($page->css ?? '');
-
-        if (trim($html) === '' && trim($css) === '') {
-            return true;
-        }
-
-        $meta = $project[self::BUILDER_SYNC_META_KEY] ?? null;
-
-        if (! is_array($meta) || ! is_string($meta['content_hash'] ?? null)) {
-            return false;
-        }
-
-        return hash_equals($meta['content_hash'], $this->builderContentHash($html, $css));
-    }
-
-    private function builderContentHash(string $html, string $css): string
-    {
-        return hash('sha256', json_encode([
-            'html' => $html,
-            'css' => $css,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function normalizeBuilderProject(mixed $project): ?array
-    {
-        if (is_string($project)) {
-            $project = trim($project);
-
-            if ($project === '') {
-                return null;
-            }
-
-            $project = json_decode($project, true);
-        }
-
-        if (! is_array($project)) {
-            return null;
-        }
-
-        if (isset($project['template']) && is_array($project['template'])) {
-            foreach (['page_builder_json', 'project', 'builderProject'] as $key) {
-                if (array_key_exists($key, $project['template'])) {
-                    $normalized = $this->normalizeBuilderProject($project['template'][$key]);
-
-                    if ($normalized !== null) {
-                        return $normalized;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        foreach (['page_builder_json', 'project', 'builderProject'] as $key) {
-            if (array_key_exists($key, $project)) {
-                $normalized = $this->normalizeBuilderProject($project[$key]);
-
-                if ($normalized !== null) {
-                    return $normalized;
-                }
-            }
-        }
-
-        $looksLikeGrapesProject = isset($project['pages'])
-            || isset($project['components'])
-            || isset($project['styles'])
-            || isset($project['assets']);
-
-        return $looksLikeGrapesProject ? $project : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     * @return array{0:?array<string, mixed>,1:string,2:string}
-     */
-    private function templateContentFromPayload(array $payload): array
-    {
-        $template = ($payload['schema_version'] ?? null) === 'page-builder-template/v1'
-            ? ($payload['template'] ?? [])
-            : $payload;
-
-        if (! is_array($template)) {
-            throw new InvalidArgumentException('Template payload is invalid.');
-        }
-
-        $project = null;
-        $projectValue = $template['page_builder_json'] ?? $template['project'] ?? null;
-
-        if (is_array($projectValue)) {
-            $project = $projectValue;
-        } elseif (is_string($projectValue) && trim($projectValue) !== '') {
-            $decoded = json_decode($projectValue, true, 512, JSON_THROW_ON_ERROR);
-            if (! is_array($decoded)) {
-                throw new InvalidArgumentException('Template project data is invalid.');
-            }
-            $project = $decoded;
-        } elseif (isset($payload['pages']) || isset($payload['styles']) || isset($payload['assets'])) {
-            $project = $payload;
-        }
-
-        $html = is_string($template['html'] ?? null) ? $template['html'] : '';
-        $css = is_string($template['css'] ?? null) ? $template['css'] : '';
-
-        if ($project === null && trim($html) === '' && trim($css) === '') {
-            throw new InvalidArgumentException('Template must include project data, HTML, or CSS.');
-        }
-
-        $editableSchema = $template['editable_schema'] ?? $payload['editable_schema'] ?? null;
-        if (is_array($editableSchema)) {
-            $project = is_array($project) ? $project : [];
-            $project['editable_schema'] = $editableSchema;
-            $project['template_key'] = (string) ($editableSchema['template_key'] ?? $project['template_key'] ?? '');
-        }
-
-        return [$project, $html, $css];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function contentTypes(): array
-    {
-        return [
-            'page' => 'Page',
-            'header' => 'Header',
-            'footer' => 'Footer',
-            'block' => 'Block',
-        ];
-    }
-
-    private function contentType(mixed $value): string
-    {
-        $value = is_string($value) ? $value : 'page';
-
-        return array_key_exists($value, $this->contentTypes()) ? $value : 'page';
-    }
-
-    /**
-     * @return array<int, array{id: string, label: string, category: string, content: string}>
-     */
-    private function savedBlocks(int $currentPageId): array
-    {
-        return DB::table('platform_pages')
-            ->where('content_type', 'block')
-            ->where('id', '!=', $currentPageId)
-            ->whereNotNull('html')
-            ->orderBy('sort_order')
-            ->orderBy('title')
-            ->get(['id', 'title', 'html', 'css'])
-            ->map(fn (object $block): array => [
-                'id' => 'saved-block-'.$block->id,
-                'label' => (string) $block->title,
-                'category' => 'Saved Blocks',
-                'content' => '<section data-saved-block-id="'.$block->id.'">'.($block->html ?? '').'<style>'.($block->css ?? '').'</style></section>',
-            ])
-            ->all();
-    }
-
-    private function uniqueSlug(string $value, ?int $exceptId = null): string
+    private function uniqueSlug(string $value, ?int $except = null): string
     {
         $base = Str::slug($value) ?: 'page';
         $slug = $base;
         $index = 2;
 
-        while (
-            DB::table('platform_pages')
-                ->where('slug', $slug)
-                ->when($exceptId, fn ($query) => $query->where('id', '!=', $exceptId))
-                ->exists()
-        ) {
-            $slug = $base.'-'.$index;
-            $index++;
+        while (DB::table('platform_pages')->where('slug', $slug)->when($except, fn ($query) => $query->where('id', '!=', $except))->exists()) {
+            $slug = $base.'-'.$index++;
         }
 
         return $slug;
     }
 
-    private function parentOptions(int $excludeId)
+    private function publishedDesigns(): Collection
     {
         return DB::table('platform_pages')
-            ->where('content_type', 'page')
-            ->where('id', '!=', $excludeId)
-            ->orderBy('title')
-            ->get(['id', 'title', 'menu_label']);
-    }
-
-    private function categories()
-    {
-        return DB::table('platform_pages')
-            ->whereNotNull('category')
-            ->orderBy('category')
-            ->pluck('category')
-            ->unique()
-            ->values();
-    }
-
-    private function publishedDesigns(string $type)
-    {
-        return DB::table('platform_pages')
-            ->where('content_type', $type)
             ->where('status', 'published')
-            ->orderBy('sort_order')
+            ->where('content_type', '!=', 'block')
             ->orderBy('title')
-            ->get(['id', 'title', 'slug', 'updated_at']);
+            ->get();
     }
 }

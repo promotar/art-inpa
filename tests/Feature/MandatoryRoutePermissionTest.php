@@ -141,8 +141,14 @@ class MandatoryRoutePermissionTest extends TestCase
     public function test_the_final_super_admin_assignment_cannot_be_removed(): void
     {
         app(PermissionManager::class)->syncDefaults();
-        $superAdmin = User::factory()->create(['email_verified_at' => now()]);
-        $superAdmin->assignRole('super-admin');
+        $superAdmin = User::role('super-admin')->first();
+
+        if ($superAdmin === null) {
+            $superAdmin = User::factory()->create(['email_verified_at' => now()]);
+            $superAdmin->assignRole('super-admin');
+        }
+
+        $this->assertSame(1, User::role('super-admin')->count());
 
         $this->actingAs($superAdmin)
             ->patch(route('admin.users.update', $superAdmin), [

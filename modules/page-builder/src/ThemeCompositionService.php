@@ -2,112 +2,89 @@
 
 namespace Modules\PageBuilder;
 
-use App\Platform\Core\PageBuilder\PageBuilderRenderService;
+use App\Platform\Core\Rendering\PlatformContentRenderer;
+use App\Platform\Core\Services\SettingsRepository;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ThemeCompositionService
 {
-    public function __construct(private readonly PageBuilderRenderService $renderer) {}
+    public function __construct(
+        private readonly PlatformContentRenderer $renderer,
+        private readonly SettingsRepository $settings,
+    ) {}
 
     /**
      * @return array<string, mixed>
      */
     public function pageViewData(object $page, bool $isPreview = false): array
     {
-        $data = $this->renderer->pageViewData($page, $isPreview);
-        $selection = $this->selection();
+        $values = $this->settings->values();
+        $headers = $this->designs('header');
+        $footers = $this->designs('footer');
+        $pageHtml = $this->renderer->renderHtml((string) ($page->html ?: $page->content));
 
-        if ($selection === null) {
-            return $data;
-        }
-
-        $header = $this->selectedDesign($selection->header_page_id ?? null, 'header');
-        $body = $this->selectedDesign($selection->body_page_id ?? null, 'page');
-        $footer = $this->selectedDesign($selection->footer_page_id ?? null, 'footer');
-        $pageHtml = $this->renderer->renderHtml((string) ($page->html ?: $page->content), $page);
-
-        $data['dynamicHeaders'] = $header ? collect([$this->renderedSection($header, 'header', $page)]) : collect();
-        $data['dynamicFooters'] = $footer ? collect([$this->renderedSection($footer, 'footer', $page)]) : collect();
-        $data['pageHtml'] = $this->renderBody($body, $pageHtml, $page);
-        $data['dynamicLayoutCss'] = collect([
-            $header->css ?? null,
-            $body->css ?? null,
-            $footer->css ?? null,
-        ])->filter(fn (mixed $css): bool => is_string($css) && trim($css) !== '')
-            ->implode("\n");
-
-        return $data;
+        return [
+            'platformSettings' => $values,
+            'dynamicHeaders' => $headers->map(fn (object $header): object => $this->section($header, $page)),
+            'dynamicFooters' => $footers->map(fn (object $footer): object => $this->section($footer, $page)),
+            'dynamicLayoutCss' => collect([
+                $this->renderer->themeModeCss(),
+                ...$headers->pluck('css')->map(fn ($css): string => trim((string) $css))->all(),
+                ...$footers->pluck('css')->map(fn ($css): string => trim((string) $css))->all(),
+            ])->filter()->implode("\n"),
+            'pageCss' => trim((string) ($page->css ?? '')),
+            'pageHtml' => $pageHtml,
+            'siteTitle' => $values['general.site_title'] ?? config('app.name', 'Laravel'),
+            'siteIcon' => $values['general.site_icon'] ?? null,
+            'title' => $page->seo_title ?: $page->title,
+            'description' => $page->meta_description ?? '',
+            'isPreview' => $isPreview,
+        ];
     }
 
-    private function selection(): ?object
+    /**
+     * @return array{dynamicHeaders:Collection, dynamicFooters:Collection, dynamicLayoutCss:string}
+     */
+    public function layoutViewData(?object $context = null): array
     {
-        if (! Schema::hasTable('page_builder_theme_settings')) {
-            return null;
-        }
+        $headers = $this->designs('header');
+        $footers = $this->designs('footer');
+        $context ??= (object) [];
 
-        return DB::table('page_builder_theme_settings')->where('id', 1)->first();
+        return [
+            'dynamicHeaders' => $headers->map(fn (object $header): object => $this->section($header, $context)),
+            'dynamicFooters' => $footers->map(fn (object $footer): object => $this->section($footer, $context)),
+            'dynamicLayoutCss' => collect([
+                $this->renderer->themeModeCss(),
+                ...$headers->pluck('css')->map(fn ($css): string => trim((string) $css))->all(),
+                ...$footers->pluck('css')->map(fn ($css): string => trim((string) $css))->all(),
+            ])->filter()->implode("\n"),
+        ];
     }
 
-    private function selectedDesign(mixed $id, string $type): ?object
+    private function designs(string $placement): Collection
     {
-        if (! is_numeric($id)) {
-            return null;
+        if (! Schema::hasTable('vvvebjs_layout_sections')) {
+            return collect();
         }
 
-        return DB::table('platform_pages')
-            ->where('id', (int) $id)
-            ->where('content_type', $type)
-            ->where('status', 'published')
-            ->first();
+        return DB::table('vvvebjs_layout_sections as layout')
+            ->join('platform_pages as pages', 'pages.id', '=', 'layout.page_id')
+            ->where('layout.placement', $placement)
+            ->where('pages.status', 'published')
+            ->orderBy('layout.sort_order')
+            ->orderBy('layout.id')
+            ->select('pages.*', 'layout.sort_order as layout_sort_order')
+            ->get();
     }
 
-    private function renderedSection(object $design, string $type, object $context): object
+    private function section(object $design, object $context): object
     {
         $section = clone $design;
-        $section->content_type = $type;
-        $section->rendered_html = $this->renderer->renderHtml(
-            (string) ($design->html ?: $design->content),
-            $context,
-        );
+        $section->rendered_html = $this->renderer->renderHtml((string) ($design->html ?: $design->content));
 
         return $section;
-    }
-
-    private function renderBody(?object $body, string $pageHtml, object $context): string
-    {
-        if ($body === null) {
-            return $pageHtml;
-        }
-
-        $bodyHtml = (string) ($body->html ?: $body->content);
-
-        if ((int) $body->id === (int) $context->id) {
-            return $this->renderer->renderHtml($bodyHtml, $context);
-        }
-
-        if (str_contains($bodyHtml, '{{ page_content }}')) {
-            return $this->renderer->renderHtml(
-                str_replace('{{ page_content }}', $pageHtml, $bodyHtml),
-                $context,
-            );
-        }
-
-        $withContent = preg_replace_callback(
-            '~<(?P<tag>[a-z][a-z0-9:-]*)(?P<attrs>[^>]*)\sdata-dynamic-field=(["\'])content\3(?P<attrs2>[^>]*)>(?P<body>.*?)</\1>~is',
-            function (array $matches) use ($pageHtml): string {
-                $attrs = trim((string) (($matches['attrs'] ?? '').' data-dynamic-field="content" '.($matches['attrs2'] ?? '')));
-
-                return '<'.$matches['tag'].' '.$attrs.'>'.$pageHtml.'</'.$matches['tag'].'>';
-            },
-            $bodyHtml,
-            1,
-            $count,
-        );
-
-        return $this->renderer->renderHtml(
-            $count > 0 ? (string) $withContent : $bodyHtml,
-            $context,
-        );
     }
 }

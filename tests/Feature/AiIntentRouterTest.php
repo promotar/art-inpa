@@ -360,7 +360,7 @@ class AiIntentRouterTest extends TestCase
                 'last_visual_result' => [
                     'type' => 'image',
                     'source' => 'generated',
-                    'url' => 'http://10.10.0.40:8080/generated/test.png',
+                    'url' => 'https://example.test/generated/test.png',
                     'prompt' => 'اعمل صورة لطفل في الغابة',
                 ],
             ],
@@ -378,7 +378,7 @@ class AiIntentRouterTest extends TestCase
                 'last_visual_result' => [
                     'type' => 'image',
                     'source' => 'generated',
-                    'url' => 'http://10.10.0.40:8080/generated/test.png',
+                    'url' => 'https://example.test/generated/test.png',
                     'prompt' => 'اعمل صورة بوستر عن معرض فني',
                 ],
                 'last_visual_prompt' => 'اعمل صورة بوستر عن معرض فني',

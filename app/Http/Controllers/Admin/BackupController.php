@@ -174,12 +174,18 @@ class BackupController extends Controller
 
     private function fileManagerUrl(string $folder): string
     {
+        $baseUrl = rtrim((string) config('platform.backup_file_manager_url', ''), '/');
+
+        if ($baseUrl === '') {
+            return route('admin.backups.index');
+        }
+
         $path = collect(explode('/', str_replace('\\', '/', $folder)))
             ->filter(fn (string $segment): bool => $segment !== '')
             ->map(fn (string $segment): string => rawurlencode($segment))
             ->implode('/');
 
-        return 'http://10.10.0.20:8081/files/'.$path;
+        return $baseUrl.'/files/'.$path;
     }
 
     private function isSafeBackupPath(?string $path): bool

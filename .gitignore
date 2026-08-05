@@ -1,8 +1,18 @@
 *.log
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*.tmp
+*.codex-*
 .tmp-*.tar*
 .DS_Store
 .env*
 !.env.example
+.ssh/
+id_rsa*
+id_ed25519*
 /backups/
 **/.backups/
 docker/secrets/
@@ -37,3 +47,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /art-inpa-main.zip
+/verification/*
+!/verification/README.md
+!/verification/*.example.*
+/reports/10-local-environment-configuration-completion.md
+!/reports/10-local-environment-configuration.example.md

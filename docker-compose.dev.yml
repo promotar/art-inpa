@@ -1,5 +1,7 @@
 services:
   app:
+    env_file:
+      - .env
     environment:
       ART_INPA_DEVELOPMENT: "1"
       ART_INPA_HOST_UID: "${ART_INPA_HOST_UID:-1000}"

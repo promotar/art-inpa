@@ -1,21 +1,22 @@
 {
   "name": "Page Builder",
   "slug": "page-builder",
-  "version": "2.1.0",
+  "version": "3.3.3",
   "type": "feature",
   "core": true,
   "platform_version": ">=2.5.0 <3.0.0",
-  "description": "Unified visual Page Builder for pages, headers, footers, bodies and reusable blocks, with Theme Builder selecting active frontend compositions by reference.",
+  "description": "The single VvvebJs visual builder for pages and reusable designs with ordered theme headers and footers.",
   "author": "Art INPA",
-  "provider": "Modules\\PageBuilder\\PageBuilderServiceProvider",
-  "provider_file": "src/PageBuilderServiceProvider.php",
+  "provider": "Modules\\PageBuilder\\VvvebJsServiceProvider",
+  "provider_file": "src/VvvebJsServiceProvider.php",
   "dependencies": [],
   "routes": {
     "admin": {
       "file": "routes/admin.php",
       "prefix": "",
       "name": "",
-      "middleware": ["web", "auth", "staff"]
+      "middleware": ["web", "auth", "staff"],
+      "methods": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
     },
     "web": {
       "file": "routes/web.php",
@@ -27,47 +28,28 @@
   "permissions": [
     {
       "name": "pages.manage",
-      "description": "Manage Page Builder pages, templates and revisions."
-    },
-    {
-      "name": "front-builder.manage",
-      "description": "Legacy alias retained for existing role assignments."
+      "description": "Manage VvvebJs pages, layouts and revisions."
     }
   ],
-  "menus": [
-    {
-      "key": "page-builder.admin",
-      "name": "Page Builder",
-      "location": "admin",
-      "items": [
-        {
-          "title": "Page Builder",
-          "route": "admin.pages.index",
-          "icon": "layout",
-          "permission": "pages.manage",
-          "order": 10
-        }
-      ]
-    }
-  ],
+  "menus": [],
   "migrations": "database/migrations",
   "lifecycle": {
-    "file": "src/PageBuilderLifecycle.php",
-    "install": "Modules\\PageBuilder\\PageBuilderLifecycle@consolidate",
-    "activate": "Modules\\PageBuilder\\PageBuilderLifecycle@consolidate",
-    "reactivate": "Modules\\PageBuilder\\PageBuilderLifecycle@consolidate"
+    "file": "src/VvvebJsLifecycle.php",
+    "install": "Modules\\PageBuilder\\VvvebJsLifecycle@activate",
+    "activate": "Modules\\PageBuilder\\VvvebJsLifecycle@activate",
+    "reactivate": "Modules\\PageBuilder\\VvvebJsLifecycle@activate"
   },
   "uninstall": {
-    "tables": [],
+    "tables": ["page_builder_theme_settings", "vvvebjs_page_revisions", "vvvebjs_layout_sections"],
     "settings": [],
     "storage_paths": [],
     "records": [],
     "columns": [
       {
         "table": "platform_pages",
-        "columns": ["parent_id", "category", "menu_label", "show_in_menu"]
+        "columns": ["vvvebjs_html"]
       }
     ],
-    "operation_target_prefixes": ["platform-page", "page-builder", "front-builder"]
+    "operation_target_prefixes": ["vvvebjs-page"]
   }
 }

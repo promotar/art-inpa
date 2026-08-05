@@ -8,10 +8,7 @@ use App\Platform\Core\Models\Menu;
 use App\Platform\Core\Models\MenuItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
@@ -39,7 +36,6 @@ class MenuSettingsController extends Controller
             'activeLocation' => $activeLocation,
             'activeMenuId' => $activeMenuId,
             'menus' => $menus,
-            'builderContent' => $this->builderContent(),
             'permissions' => Permission::query()->orderBy('name')->pluck('name'),
             'routeNames' => collect(Route::getRoutes())
                 ->map(fn ($route) => $route->getName())
@@ -67,10 +63,10 @@ class MenuSettingsController extends Controller
 
     public function storeMenu(Request $request, string $location): RedirectResponse
     {
-        abort_unless($location === 'frontend', 404);
+        abort_unless(in_array($location, ['frontend', 'admin'], true), 404);
 
         $data = $this->validatedMenu($request);
-        $key = $this->uniqueMenuKey($data['key'] ?: $data['name'], $location);
+        $key = $this->uniqueMenuKey(($data['key'] ?? null) ?: $data['name'], $location);
 
         $menu = Menu::query()->create([
             'key' => $key,
@@ -87,20 +83,28 @@ class MenuSettingsController extends Controller
             'key' => $menu->key,
             'name' => $menu->name,
         ], $request->user()?->id);
-        app(OperationLogger::class)->success($operation, 'Frontend menu created from menu settings.');
+        app(OperationLogger::class)->success($operation, ucfirst($location).' menu created from menu settings.');
 
         return redirect()
             ->route('admin.menus.index', ['location' => $location, 'menu' => $menu->id])
-            ->with('status', 'Frontend menu created.');
+            ->with('status', $location === 'admin' ? 'Admin section created.' : 'Frontend menu created.');
     }
 
     public function updateMenu(Request $request, Menu $menu): RedirectResponse
     {
-        abort_unless($menu->location === 'frontend', 404);
+        abort_unless(in_array($menu->location, ['frontend', 'admin'], true), 404);
 
         $data = $this->validatedMenu($request);
+
+        if ($menu->location === 'admin'
+            && ! (bool) ($data['is_active'] ?? false)
+            && $menu->is_active
+            && ! Menu::query()->where('location', 'admin')->where('is_active', true)->where('id', '!=', $menu->id)->exists()) {
+            throw ValidationException::withMessages(['is_active' => 'At least one admin section must remain active.']);
+        }
+
         $menu->update([
-            'key' => $this->uniqueMenuKey($data['key'] ?: $data['name'], $menu->location, $menu->id),
+            'key' => $this->uniqueMenuKey(($data['key'] ?? null) ?: $data['name'], $menu->location, $menu->id),
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'is_active' => (bool) ($data['is_active'] ?? false),
@@ -112,16 +116,24 @@ class MenuSettingsController extends Controller
             'key' => $menu->key,
             'name' => $menu->name,
         ], $request->user()?->id);
-        app(OperationLogger::class)->success($operation, 'Frontend menu updated from menu settings.');
+        app(OperationLogger::class)->success($operation, ucfirst($menu->location).' menu updated from menu settings.');
 
         return redirect()
             ->route('admin.menus.index', ['location' => $menu->location, 'menu' => $menu->id])
-            ->with('status', 'Frontend menu updated.');
+            ->with('status', $menu->location === 'admin' ? 'Admin section updated.' : 'Frontend menu updated.');
     }
 
     public function destroyMenu(Menu $menu): RedirectResponse
     {
-        abort_unless($menu->location === 'frontend', 404);
+        abort_unless(in_array($menu->location, ['frontend', 'admin'], true), 404);
+
+        if ($menu->location === 'admin' && $menu->items()->exists()) {
+            throw ValidationException::withMessages(['menu' => 'Move or delete every item before deleting an admin section.']);
+        }
+
+        if ($menu->location === 'admin' && Menu::query()->where('location', 'admin')->where('id', '!=', $menu->id)->doesntExist()) {
+            throw ValidationException::withMessages(['menu' => 'The final admin section cannot be deleted.']);
+        }
 
         $operation = app(OperationLogger::class)->start('admin.menus.delete', 'menu', (string) $menu->id, [
             'location' => $menu->location,
@@ -129,16 +141,17 @@ class MenuSettingsController extends Controller
             'name' => $menu->name,
         ], request()->user()?->id);
         $menu->delete();
-        app(OperationLogger::class)->success($operation, 'Frontend menu removed from menu settings.');
+        app(OperationLogger::class)->success($operation, ucfirst($menu->location).' menu removed from menu settings.');
 
         return redirect()
-            ->route('admin.menus.index', ['location' => 'frontend'])
-            ->with('status', 'Frontend menu removed.');
+            ->route('admin.menus.index', ['location' => $menu->location])
+            ->with('status', $menu->location === 'admin' ? 'Admin section removed.' : 'Frontend menu removed.');
     }
 
     private function storeItem(Request $request, Menu $menu): RedirectResponse
     {
         $data = $this->validated($request);
+        $this->assertAdminItemAllowed($data, $menu);
 
         $item = $menu->items()->create($this->itemPayload($data, $menu));
 
@@ -158,7 +171,14 @@ class MenuSettingsController extends Controller
     public function update(Request $request, MenuItem $item): RedirectResponse
     {
         $data = $this->validated($request);
-        $item->update($this->itemPayload($data, $item->menu, $item));
+        $menu = $this->adminDestinationMenu($data, $item->menu);
+
+        if ($menu->id !== $item->menu_id) {
+            $data['parent_id'] = null;
+        }
+
+        $this->assertAdminItemAllowed($data, $menu, $item);
+        $item->update(['menu_id' => $menu->id] + $this->itemPayload($data, $menu, $item));
 
         $operation = app(OperationLogger::class)->start('admin.menus.items.update', 'menu-item', (string) $item->id, [
             'menu_id' => $item->menu_id,
@@ -230,11 +250,16 @@ class MenuSettingsController extends Controller
             'font_weight' => ['nullable', 'in:normal,medium,semibold,bold'],
             'border_radius' => ['nullable', 'string', 'max:32'],
             'padding' => ['nullable', 'string', 'max:32'],
+            'audience' => ['nullable', 'in:all,guest,authenticated'],
+            'action_method' => ['nullable', 'in:get,post'],
+            'destination_menu_id' => ['nullable', 'integer', 'exists:menus,id'],
         ]);
 
         $data['url'] = $this->nullableTrim($data['url'] ?? null);
         $data['route_name'] = $this->nullableTrim($data['route_name'] ?? null);
         $data['type'] = $this->normalizeItemType((string) $data['type'], $data['url'], $data['route_name']);
+        $data['audience'] = (string) ($data['audience'] ?? 'all');
+        $data['action_method'] = (string) ($data['action_method'] ?? 'get');
 
         $errors = [];
 
@@ -243,6 +268,13 @@ class MenuSettingsController extends Controller
                 $errors['route_name'] = 'Choose a route for this menu item.';
             } elseif (! Route::has($data['route_name'])) {
                 $errors['route_name'] = 'The selected route is not registered.';
+            } else {
+                $method = strtoupper($data['action_method']);
+                $routeMethods = Route::getRoutes()->getByName($data['route_name'])?->methods() ?? [];
+
+                if (! in_array($method, $routeMethods, true)) {
+                    $errors['action_method'] = 'The selected route does not accept '.$method.' requests.';
+                }
             }
         }
 
@@ -264,6 +296,15 @@ class MenuSettingsController extends Controller
     private function itemPayload(array $data, Menu $menu, ?MenuItem $item = null): array
     {
         $type = (string) $data['type'];
+        $metadata = is_array($item?->metadata) ? $item->metadata : [];
+        $metadata['style'] = $this->stylePayload($data);
+
+        if ($menu->location === 'frontend') {
+            $metadata['audience'] = (string) ($data['audience'] ?? 'all');
+            $metadata['action_method'] = $type === 'route'
+                ? (string) ($data['action_method'] ?? 'get')
+                : 'get';
+        }
 
         return [
             'title' => $data['title'],
@@ -275,12 +316,50 @@ class MenuSettingsController extends Controller
             'target' => $data['target'] ?? '_self',
             'permission' => $data['permission'] ?? null,
             'parent_id' => $this->resolvedParentId($data, $menu, $item),
-            'metadata' => [
-                'style' => $this->stylePayload($data),
-            ],
+            'metadata' => $metadata,
             'is_active' => (bool) ($data['is_active'] ?? false),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
         ];
+    }
+
+    /** @param array<string, mixed> $data */
+    private function assertAdminItemAllowed(array $data, Menu $menu, ?MenuItem $item = null): void
+    {
+        if ($menu->location !== 'admin' || ($data['type'] ?? null) !== 'route') {
+            return;
+        }
+
+        $routeName = (string) ($data['route_name'] ?? '');
+
+        if ($routeName !== 'dashboard' && ! str_starts_with($routeName, 'admin.')) {
+            throw ValidationException::withMessages(['route_name' => 'Admin sections accept dashboard or admin.* routes only.']);
+        }
+
+        $duplicate = MenuItem::query()
+            ->whereHas('menu', fn ($query) => $query->where('location', 'admin'))
+            ->where('route_name', $routeName)
+            ->when($item, fn ($query) => $query->where('id', '!=', $item->id))
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages(['route_name' => 'This admin route is already registered in another menu section.']);
+        }
+    }
+
+    /** @param array<string, mixed> $data */
+    private function adminDestinationMenu(array $data, Menu $current): Menu
+    {
+        if ($current->location !== 'admin' || empty($data['destination_menu_id'])) {
+            return $current;
+        }
+
+        $destination = Menu::query()->where('location', 'admin')->find($data['destination_menu_id']);
+
+        if (! $destination) {
+            throw ValidationException::withMessages(['destination_menu_id' => 'Choose a registered admin section.']);
+        }
+
+        return $destination;
     }
 
     private function normalizeItemType(string $type, ?string $url, ?string $routeName): string
@@ -431,7 +510,7 @@ class MenuSettingsController extends Controller
 
     public function initializeDefaults(): void
     {
-        $front = Menu::query()->firstOrCreate([
+        Menu::query()->firstOrCreate([
             'key' => 'platform.frontend',
             'location' => 'frontend',
         ], [
@@ -442,29 +521,6 @@ class MenuSettingsController extends Controller
             'sort_order' => 0,
         ]);
 
-        if ($front->wasRecentlyCreated) {
-            $front->items()->createMany([
-                ['title' => 'Home', 'type' => 'route', 'route_name' => 'front.home', 'icon' => 'H', 'is_active' => true, 'sort_order' => 10],
-                ['title' => 'My Account', 'type' => 'route', 'route_name' => 'front.account', 'icon' => 'A', 'permission' => null, 'is_active' => true, 'sort_order' => 20],
-            ]);
-        }
-
-        $admin = Menu::query()->firstOrCreate([
-            'key' => 'platform.admin',
-            'location' => 'admin',
-        ], [
-            'name' => 'Admin Menu',
-            'description' => 'Editable admin sidebar menu.',
-            'source' => 'platform',
-            'is_active' => true,
-            'sort_order' => 0,
-        ]);
-
-        if ($admin->wasRecentlyCreated) {
-            $admin->items()->createMany($this->defaultAdminItems());
-        }
-
-        $this->ensureOperationalAdminItems($admin);
     }
 
     private function menuFor(string $location): Menu
@@ -472,8 +528,10 @@ class MenuSettingsController extends Controller
         $this->initializeDefaults();
 
         return Menu::query()
-            ->where('key', 'platform.'.$location)
             ->where('location', $location)
+            ->when($location === 'frontend', fn ($query) => $query->where('key', 'platform.frontend'))
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->firstOrFail();
     }
 
@@ -496,132 +554,5 @@ class MenuSettingsController extends Controller
         }
 
         return $key;
-    }
-
-    /**
-     * @return Collection<int, object>
-     */
-    private function builderContent()
-    {
-        if (
-            ! Schema::hasTable('platform_pages')
-            || ! Schema::hasColumn('platform_pages', 'content_type')
-        ) {
-            return collect();
-        }
-
-        return DB::table('platform_pages')
-            ->whereIn('content_type', ['header', 'footer', 'block'])
-            ->orderByRaw("CASE content_type WHEN 'header' THEN 1 WHEN 'footer' THEN 2 WHEN 'block' THEN 3 ELSE 9 END")
-            ->orderBy('sort_order')
-            ->orderBy('title')
-            ->get(['id', 'title', 'slug', 'content_type', 'status', 'updated_at']);
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function defaultAdminItems(): array
-    {
-        return [
-            ['title' => 'Dashboard', 'type' => 'route', 'route_name' => 'dashboard', 'icon' => 'D', 'is_active' => true, 'sort_order' => 10],
-            ['title' => 'Documentation', 'type' => 'route', 'route_name' => 'admin.documentation.index', 'icon' => 'O', 'permission' => 'documentation.manage', 'is_active' => true, 'sort_order' => 15],
-            ['title' => 'Platform Registry', 'type' => 'route', 'route_name' => 'admin.platform-registry.index', 'icon' => 'A', 'permission' => 'platform-registry.view', 'is_active' => true, 'sort_order' => 20],
-            ['title' => 'Menus', 'type' => 'route', 'route_name' => 'admin.menus.index', 'icon' => 'N', 'permission' => 'menus.manage', 'is_active' => true, 'sort_order' => 25],
-            ['title' => 'Media', 'type' => 'route', 'route_name' => 'admin.media.index', 'icon' => 'M', 'permission' => 'media.manage', 'is_active' => true, 'sort_order' => 40],
-            ['title' => 'Page Builder', 'type' => 'route', 'route_name' => 'admin.pages.index', 'icon' => 'G', 'permission' => 'pages.manage', 'is_active' => true, 'sort_order' => 30],
-            ['title' => 'Theme Builder', 'type' => 'route', 'route_name' => 'admin.theme-builder.index', 'icon' => 'T', 'permission' => 'theme-builder.manage', 'is_active' => true, 'sort_order' => 55],
-            ['title' => 'Settings', 'type' => 'route', 'route_name' => 'admin.settings.index', 'icon' => 'S', 'permission' => 'settings.manage', 'is_active' => true, 'sort_order' => 60],
-            ['title' => 'Plugins', 'type' => 'route', 'route_name' => 'admin.plugins.index', 'icon' => 'P', 'permission' => 'plugins.view', 'is_active' => true, 'sort_order' => 70],
-            ['title' => 'Users', 'type' => 'route', 'route_name' => 'admin.users.index', 'icon' => 'U', 'permission' => 'users.manage', 'is_active' => true, 'sort_order' => 80],
-            ['title' => 'Roles', 'type' => 'route', 'route_name' => 'admin.roles.index', 'icon' => 'L', 'permission' => 'roles.manage', 'is_active' => true, 'sort_order' => 90],
-            ['title' => 'Permissions', 'type' => 'route', 'route_name' => 'admin.permissions.index', 'icon' => 'K', 'permission' => 'permissions.manage', 'is_active' => true, 'sort_order' => 100],
-        ];
-    }
-
-    private function ensureOperationalAdminItems(Menu $admin): void
-    {
-        $this->ensureMenuItem($admin, [
-            'title' => 'Install Plugin',
-            'label' => 'Install Plugin',
-            'type' => 'route',
-            'route_name' => 'admin.plugins.create',
-            'icon' => 'I',
-            'permission' => 'plugins.install',
-            'is_active' => true,
-            'sort_order' => 75,
-            'metadata' => ['admin_group' => 'Platform', 'admin_sort_order' => 30],
-        ]);
-
-        $blog = MenuItem::query()->where('route_name', 'admin.plugins.blog.index')->first();
-
-        if ($blog !== null) {
-            $this->ensureMenuItem($blog->menu, [
-                'parent_id' => $blog->id,
-                'plugin_id' => $blog->plugin_id,
-                'title' => 'Blog Settings',
-                'label' => 'Blog Settings',
-                'type' => 'route',
-                'route_name' => 'admin.plugins.blog.settings.edit',
-                'icon' => 'B',
-                'permission' => 'blog.update',
-                'is_active' => true,
-                'sort_order' => 50,
-                'metadata' => ['admin_group' => 'Content Management', 'admin_sort_order' => 50],
-            ]);
-        }
-
-        $professionalProgrammer = MenuItem::query()->where('route_name', 'admin.plugins.professional-programmer.index')->first();
-
-        if ($professionalProgrammer !== null) {
-            $this->ensureMenuItem($professionalProgrammer->menu, [
-                'parent_id' => $professionalProgrammer->id,
-                'plugin_id' => $professionalProgrammer->plugin_id,
-                'title' => 'Professional Programmer Alerts',
-                'label' => 'Professional Programmer Alerts',
-                'type' => 'route',
-                'route_name' => 'admin.plugins.professional-programmer.alerts',
-                'icon' => 'PA',
-                'permission' => 'professional-programmer.manage',
-                'is_active' => true,
-                'sort_order' => 40,
-                'metadata' => ['admin_group' => 'AI Tools', 'admin_sort_order' => 40],
-            ]);
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    private function ensureMenuItem(Menu $menu, array $attributes): void
-    {
-        $routeName = $attributes['route_name'] ?? null;
-
-        if (is_string($routeName) && ! Route::has($routeName)) {
-            return;
-        }
-
-        if (! is_string($routeName) || $routeName === '') {
-            return;
-        }
-
-        MenuItem::query()->firstOrCreate([
-            'menu_id' => $menu->id,
-            'route_name' => $routeName,
-        ], [
-            'parent_id' => $attributes['parent_id'] ?? null,
-            'plugin_id' => $attributes['plugin_id'] ?? null,
-            'title' => $attributes['title'],
-            'label' => $attributes['label'] ?? null,
-            'type' => $attributes['type'] ?? 'route',
-            'url' => null,
-            'route_params' => null,
-            'icon' => $attributes['icon'] ?? null,
-            'target' => '_self',
-            'permission' => $attributes['permission'] ?? null,
-            'metadata' => $attributes['metadata'] ?? [],
-            'is_active' => (bool) ($attributes['is_active'] ?? true),
-            'sort_order' => (int) ($attributes['sort_order'] ?? 0),
-        ]);
     }
 }

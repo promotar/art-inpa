@@ -9,7 +9,6 @@ use App\Http\Controllers\Admin\PlatformRegistryController;
 use App\Http\Controllers\Admin\PluginController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingsController;
-use App\Http\Controllers\Admin\ThemeBuilderController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Ai\AiChatController;
 use App\Http\Controllers\InstallationController;
@@ -204,43 +203,6 @@ Route::middleware(['auth', 'staff'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/media/metadata', [MediaController::class, 'update'])->name('media.update');
         Route::delete('/media', [MediaController::class, 'destroy'])->name('media.destroy');
     });
-
-    Route::get('/theme-builder', [ThemeBuilderController::class, 'index'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.index');
-    Route::post('/theme-builder/templates', [ThemeBuilderController::class, 'store'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.store');
-    Route::get('/theme-builder/templates/{template}/builder', [ThemeBuilderController::class, 'builder'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.builder');
-    Route::patch('/theme-builder/templates/{template}/builder-save', [ThemeBuilderController::class, 'builderSave'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.builder-save');
-    Route::patch('/theme-builder/templates/{template}/autosave', [ThemeBuilderController::class, 'autosave'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.autosave');
-    Route::get('/theme-builder/templates/{template}/editor-preview.css', [ThemeBuilderController::class, 'editorPreviewCss'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.editor-preview-css');
-    Route::post('/theme-builder/templates/{template}/editor-component-preview', [ThemeBuilderController::class, 'editorComponentPreview'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.editor-component-preview');
-    Route::get('/theme-builder/templates/{template}/edit', [ThemeBuilderController::class, 'edit'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.edit');
-    Route::patch('/theme-builder/templates/{template}', [ThemeBuilderController::class, 'update'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.update');
-    Route::get('/theme-builder/templates/{template}/preview', [ThemeBuilderController::class, 'preview'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.preview');
-    Route::patch('/theme-builder/templates/{template}/conditions', [ThemeBuilderController::class, 'updateConditions'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.conditions.update');
-    Route::delete('/theme-builder/templates/{template}', [ThemeBuilderController::class, 'destroy'])
-        ->middleware('permission:theme-builder.manage')
-        ->name('theme-builder.templates.destroy');
 
     Route::middleware('super-admin')->group(function () {
         Route::get('/platform-registry', [PlatformRegistryController::class, 'index'])

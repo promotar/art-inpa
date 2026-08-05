@@ -5,6 +5,7 @@ cd /var/www/html
 umask 0002
 
 mkdir -p \
+    modules \
     storage/app/private \
     storage/app/private/installation \
     storage/app/public \
@@ -29,6 +30,12 @@ mkdir -p \
     storage/framework/views \
     storage/logs \
     bootstrap/cache
+
+# Public media URLs use /storage/...; source mounts and fresh images do not
+# contain Laravel's ignored public/storage symlink, so restore it at runtime.
+if [ ! -e public/storage ] && [ ! -L public/storage ]; then
+    ln -s ../storage/app/public public/storage
+fi
 
 chgrp www-data \
     storage/app/private \
@@ -100,6 +107,7 @@ chmod 2770 \
 # an older container. Keep all runtime files writable by Apache, not only their
 # parent directories.
 RUNTIME_WRITABLE_PATHS="
+modules
 storage/app/private
 storage/app/public
 storage/app/platform

@@ -2,12 +2,12 @@
     <x-slot name="header">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Page Builder</h2>
-                <p class="mt-1 text-sm text-gray-500">Design pages, headers, footers, bodies and reusable blocks with one visual builder.</p>
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">VvvebJs Builder</h2>
+                <p class="mt-1 text-sm text-gray-500">Design pages and reusable blocks in one VvvebJs workspace, then assign ordered headers and footers.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('admin.theme-builder.index') }}" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                    Theme Builder
+                <a href="{{ route('admin.vvveb.layout') }}" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    Theme Layout
                 </a>
                 @foreach (['page' => 'Create Body / Page', 'header' => 'Create Header', 'footer' => 'Create Footer', 'block' => 'Create Block'] as $type => $label)
                     <form method="POST" action="{{ route('admin.pages.store') }}">
@@ -47,7 +47,7 @@
                 <div class="border-b border-gray-200 px-6 py-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-900">Page Builder Designs</h3>
+                            <h3 class="text-lg font-semibold text-gray-900">VvvebJs Designs</h3>
                             @if (($search ?? '') !== '')
                                 <p class="mt-1 text-sm text-gray-500">Showing results for "{{ $search }}".</p>
                             @endif
