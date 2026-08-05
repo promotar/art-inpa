@@ -27,8 +27,10 @@ Frontend compilation never happens during container startup.
 1. Select the **Nixpacks** build pack.
 2. Leave custom Install and Build commands empty so repository
    `nixpacks.toml` remains authoritative.
-3. Configure runtime environment variables, including `APP_KEY`, database,
-   cache, session, queue, mail, `APP_URL`, and `PLATFORM_VERSION`.
+3. For a fresh installation, do not inject `APP_KEY`, database credentials, or
+   installed-state flags. Persist `/var/www/html/storage` and complete the web
+   installer. For an existing installation, restore its persistent storage or
+   provide its original secrets through the deployment platform.
 4. Set `APP_ENV=production` and `APP_DEBUG=false`.
 5. Deploy with a clean build when replacing a previously broken image.
 
@@ -55,16 +57,16 @@ overrides the repository build phase.
 ## Docker Compose
 
 ```bash
-cp .env.example .env
-docker compose -f docker-compose.prod.yml build --no-cache app
+docker compose -f docker-compose.prod.yml build app
 docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
 ```
 
 Compose contains one `app` service. Apache and PHP run in that container and
-serve Laravel directly on container port `80`. MySQL remains an external shared
-service on `vps-internal`. Set `QUEUE_CONNECTION=sync`; no separate queue,
-scheduler, Vite, or Nginx service is part of this project.
+serve Laravel directly on container port `80`. The database is supplied through
+the web installer and must be reachable from the container. The persistent
+`art-inpa-storage` volume carries installation state across image updates.
+Installed deployments run non-destructive migrations automatically at startup;
+fresh deployments never run migrations before the wizard confirms the database.
 
 ## Verification
 

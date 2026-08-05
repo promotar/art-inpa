@@ -1,12 +1,15 @@
 <?php
 
+use Illuminate\Contracts\Console\Kernel;
+
 require __DIR__.'/../vendor/autoload.php';
 
 $app = require __DIR__.'/../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
 if (! Schema::hasTable('operation_logs')) {
     echo "operation_logs table missing\n";
+
     return;
 }
 
@@ -27,8 +30,8 @@ if (! $exists) {
             'module' => 'ai-assistant',
             'report' => 'AI-ASSISTANT-AGENT-UPGRADE-REPORT.md',
             'backup' => [
-                '/root/codex-backups/ai-assistant-agent-upgrade-20260628-191012',
-                '/root/codex-backups/ai-vision-worker-basic-analysis-20260628-192100',
+                'ai-assistant-agent-upgrade-backup',
+                'ai-vision-worker-basic-analysis-backup',
             ],
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         'started_at' => now(),

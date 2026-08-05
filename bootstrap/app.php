@@ -14,6 +14,11 @@ use Illuminate\Http\Request;
 
 RuntimeEnvironment::load();
 
+$trustedProxies = array_values(array_filter(array_map(
+    'trim',
+    explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1')),
+)));
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -21,10 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
+    ->withMiddleware(function (Middleware $middleware) use ($trustedProxies): void {
         $middleware->prepend(EnsurePlatformInstalled::class);
         $middleware->trustProxies(
-            at: ['127.0.0.1', '::1', '10.10.0.2', '192.168.1.195'],
+            at: $trustedProxies,
             headers: Request::HEADER_X_FORWARDED_FOR
                 | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT

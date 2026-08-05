@@ -3,13 +3,13 @@
 namespace App\Platform\Core\Rendering;
 
 use App\Models\User;
+use App\Platform\Core\Contracts\LatestContentProvider;
+use App\Platform\Core\Hooks\HookManager;
 use App\Platform\Core\Menus\MenuManager;
 use App\Platform\Core\Models\Menu;
 use App\Platform\Core\Services\PluginOwnedPageGuard;
 use App\Platform\Core\Services\PluginRuntimeGate;
 use App\Platform\Core\Services\SettingsRepository;
-use App\Platform\Core\ThemeBuilder\ThemeBuilderTemplateResolver;
-use App\Platform\Core\Contracts\LatestContentProvider;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -17,13 +17,17 @@ use Illuminate\Support\Facades\Schema;
 
 class PlatformContentRenderer
 {
+    private int $menuInstance = 0;
+
+    private bool $menuStylesRendered = false;
+
     public function __construct(
         private readonly MenuManager $menus,
         private readonly SettingsRepository $settings,
         private readonly PluginRuntimeGate $pluginRuntime,
         private readonly LatestContentProvider $latestContent,
-        private readonly ?ThemeBuilderTemplateResolver $themeBuilderTemplates = null,
         private readonly ?PluginOwnedPageGuard $pluginPages = null,
+        private readonly ?HookManager $hooks = null,
     ) {
         //
     }
@@ -33,21 +37,6 @@ class PlatformContentRenderer
      */
     public function publishedLayoutSections(string $type): Collection
     {
-        if (in_array($type, ['header', 'footer'], true)) {
-            $themeBuilderSections = $this->themeBuilderTemplates()
-                ->matchingLayoutSections($type)
-                ->map(function (object $section) use ($type): object {
-                    $section->content_type = $type;
-                    $section->rendered_html = $this->renderHtml((string) ($section->html ?: $section->content));
-
-                    return $section;
-                });
-
-            if ($themeBuilderSections->isNotEmpty()) {
-                return $themeBuilderSections;
-            }
-        }
-
         if (
             ! in_array($type, ['header', 'footer'], true)
             || ! Schema::hasTable('platform_pages')
@@ -72,15 +61,11 @@ class PlatformContentRenderer
 
     public function layoutCss(): string
     {
-        $themeBuilderCss = $this->themeBuilderTemplates()->matchingCss(['header', 'footer']);
-
         if (
             ! Schema::hasTable('platform_pages')
             || ! Schema::hasColumn('platform_pages', 'content_type')
         ) {
-            return trim(collect([$this->themeModeCss(), $themeBuilderCss])
-                ->filter(fn (string $css): bool => trim($css) !== '')
-                ->implode("\n"));
+            return $this->themeModeCss();
         }
 
         $legacyCss = trim(DB::table('platform_pages')
@@ -93,7 +78,7 @@ class PlatformContentRenderer
             ->filter()
             ->implode("\n"));
 
-        return trim(collect([$this->themeModeCss(), $themeBuilderCss, $legacyCss])
+        return trim(collect([$this->themeModeCss(), $legacyCss])
             ->filter(fn (string $css): bool => trim($css) !== '')
             ->implode("\n"));
     }
@@ -311,13 +296,10 @@ CSS;
 
         return $rendered;
     }
+
     private function pluginPages(): PluginOwnedPageGuard
     {
         return $this->pluginPages ?? app(PluginOwnedPageGuard::class);
-    }
-    private function themeBuilderTemplates(): ThemeBuilderTemplateResolver
-    {
-        return $this->themeBuilderTemplates ?? app(ThemeBuilderTemplateResolver::class);
     }
 
     /**
@@ -342,15 +324,28 @@ CSS;
         return collect(array_keys($this->menuOptions()))
             ->mapWithKeys(fn (string $key): array => [
                 $key => collect($this->menus->getFrontendMenuByKey($key, $user))
-                    ->map(fn (array $item): array => [
-                        'label' => (string) ($item['label'] ?: $item['title']),
-                        'href' => $this->menuItemHref($item),
-                        'target' => (string) ($item['target'] ?? '_self'),
-                    ])
+                    ->map(fn (array $item): array => $this->menuPreviewItem($item))
                     ->values()
                     ->all(),
             ])
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array{label: string, href: string|null, target: string, children: array<int, mixed>}
+     */
+    private function menuPreviewItem(array $item): array
+    {
+        return [
+            'label' => (string) ($item['label'] ?: $item['title']),
+            'href' => $this->menuItemHref($item),
+            'target' => (string) ($item['target'] ?? '_self'),
+            'children' => collect($item['children'] ?? [])
+                ->map(fn (array $child): array => $this->menuPreviewItem($child))
+                ->values()
+                ->all(),
+        ];
     }
 
     /**
@@ -459,12 +454,29 @@ CSS;
             '~<(?P<tag>[a-z][a-z0-9:-]*)(?P<attrs>[^>]*)\sdata-platform-menu-key=(["\'])(?P<key>.*?)\3(?P<attrs2>[^>]*)>(?P<body>.*?)</\1>~is',
             function (array $matches): string {
                 $attrs = ($matches['attrs'] ?? '').' '.($matches['attrs2'] ?? '');
-                $preservedAttributes = $this->safeAttributes($attrs, ['data-platform-menu-key']);
+                $preservedAttributes = $this->safeAttributes($attrs, [
+                    'data-platform-menu-key',
+                    'data-platform-menu-layout',
+                    'data-platform-menu-icon',
+                    'data-platform-menu-side',
+                    'data-platform-menu-font-family',
+                    'data-platform-menu-font-size',
+                    'data-platform-menu-font-weight',
+                    'data-platform-menu-text-color',
+                    'data-platform-menu-background',
+                    'data-platform-menu-hover-color',
+                    'data-platform-menu-hover-background',
+                    'data-platform-menu-submenu-background',
+                    'data-platform-menu-item-margin',
+                    'data-platform-menu-item-padding',
+                    'data-platform-menu-offcanvas-width',
+                    'style',
+                ]);
                 $linkTemplates = $this->anchorAttributeTemplates((string) ($matches['body'] ?? ''));
                 $key = trim((string) ($matches['key'] ?? '')) ?: $this->defaultMenuKey();
                 $items = $this->menus->getFrontendMenuByKey($key, auth()->user());
 
-                return $this->menuHtml($key, $items, $preservedAttributes, $linkTemplates);
+                return $this->menuHtml($key, $items, $preservedAttributes, $linkTemplates, $attrs);
             },
             $html,
         ) ?? $html;
@@ -607,22 +619,145 @@ CSS;
     }
 
     /**
-     * @param array<int, array<string, mixed>> $items
-     * @param array<int, array<string, string|null>> $linkTemplates
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<int, array<string, string|null>>  $linkTemplates
      */
-    private function menuHtml(string $key, array $items, string $preservedAttributes = '', array $linkTemplates = []): string
-    {
+    private function menuHtml(
+        string $key,
+        array $items,
+        string $preservedAttributes = '',
+        array $linkTemplates = [],
+        string $sourceAttributes = '',
+    ): string {
         $links = collect($items)
             ->map(fn (array $item, int $index): string => $this->menuItemHtml($item, $index, $linkTemplates))
             ->filter()
             ->implode('');
+        $layout = $this->menuChoice($sourceAttributes, 'data-platform-menu-layout', ['horizontal', 'vertical', 'offcanvas'], 'horizontal');
+        $icon = $this->menuChoice($sourceAttributes, 'data-platform-menu-icon', ['bars', 'compact', 'dots', 'grid'], 'bars');
+        $side = $this->menuChoice($sourceAttributes, 'data-platform-menu-side', ['start', 'end'], 'end');
+        $style = $this->menuPresentationStyle($sourceAttributes);
+        $instance = ++$this->menuInstance;
+        $toggleId = 'platform-menu-toggle-'.$instance.'-'.substr(sha1($key), 0, 8);
+        $itemsHtml = '<div class="platform-menu-items">'.$links.'</div>';
 
-        return '<nav data-platform-menu-key="'.e($key).'"'.$preservedAttributes.'>'.$links.'</nav>';
+        if ($layout === 'offcanvas') {
+            $body = '<input class="platform-menu-toggle-control" type="checkbox" id="'.e($toggleId).'">'
+                .'<label class="platform-menu-toggle" for="'.e($toggleId).'" aria-label="Open menu">'.$this->menuToggleIcon($icon).'</label>'
+                .'<label class="platform-menu-overlay" for="'.e($toggleId).'" aria-label="Close menu"></label>'
+                .'<div class="platform-menu-surface">'
+                .'<label class="platform-menu-close" for="'.e($toggleId).'" aria-label="Close menu">&times;</label>'
+                .$itemsHtml
+                .'</div>';
+        } else {
+            $body = '<div class="platform-menu-surface">'.$itemsHtml.'</div>';
+        }
+
+        $stylesheet = '';
+        if (! $this->menuStylesRendered) {
+            $stylesheet = '<link rel="stylesheet" href="'.e(url('/page-builder-assets/v5/integration/css/frontend-menu.css')).'" data-platform-menu-styles="1">';
+            $this->menuStylesRendered = true;
+        }
+
+        $html = $stylesheet.'<nav data-platform-menu-key="'.e($key).'"'
+            .' data-platform-menu-layout="'.e($layout).'"'
+            .' data-platform-menu-icon="'.e($icon).'"'
+            .' data-platform-menu-side="'.e($side).'"'
+            .$this->menuPresentationAttributes($sourceAttributes)
+            .$preservedAttributes
+            .$this->optionalAttribute('style', $style)
+            .'>'.$body.'</nav>';
+        $filtered = ($this->hooks ?? app(HookManager::class))
+            ->applyFilters('frontend.menu.html', $html, $key, $items);
+
+        return is_string($filtered) ? $filtered : $html;
+    }
+
+    private function menuChoice(string $attributes, string $name, array $allowed, string $fallback): string
+    {
+        $value = strtolower(trim((string) $this->attributeValue($attributes, $name)));
+
+        return in_array($value, $allowed, true) ? $value : $fallback;
+    }
+
+    private function menuToggleIcon(string $icon): string
+    {
+        return '<span class="platform-menu-icon platform-menu-icon-'.$icon.'" aria-hidden="true"><i></i><i></i><i></i><i></i></span>';
+    }
+
+    private function menuPresentationAttributes(string $attributes): string
+    {
+        return collect([
+            'data-platform-menu-font-family',
+            'data-platform-menu-font-size',
+            'data-platform-menu-font-weight',
+            'data-platform-menu-text-color',
+            'data-platform-menu-background',
+            'data-platform-menu-hover-color',
+            'data-platform-menu-hover-background',
+            'data-platform-menu-submenu-background',
+            'data-platform-menu-item-margin',
+            'data-platform-menu-item-padding',
+            'data-platform-menu-offcanvas-width',
+        ])->map(fn (string $name): string => $this->optionalAttribute($name, $this->attributeValue($attributes, $name)))->implode('');
+    }
+
+    private function menuPresentationStyle(string $attributes): string
+    {
+        $font = trim((string) $this->attributeValue($attributes, 'data-platform-menu-font-family'));
+        $font = in_array($font, ['inherit', 'system-ui', 'Arial', 'Helvetica', 'Tahoma', 'Verdana', 'Georgia', 'Times New Roman'], true) ? $font : 'inherit';
+        $weight = $this->menuChoice($attributes, 'data-platform-menu-font-weight', ['400', '500', '600', '700'], '500');
+        $baseStyle = trim((string) $this->attributeValue($attributes, 'style'));
+        $declarations = array_filter([
+            '--platform-menu-font-family:'.$font,
+            '--platform-menu-font-size:'.$this->menuSize($attributes, 'data-platform-menu-font-size', '15px'),
+            '--platform-menu-font-weight:'.$weight,
+            '--platform-menu-color:'.$this->menuColor($attributes, 'data-platform-menu-text-color', '#1f2937'),
+            '--platform-menu-background:'.$this->menuColor($attributes, 'data-platform-menu-background', 'transparent'),
+            '--platform-menu-hover-color:'.$this->menuColor($attributes, 'data-platform-menu-hover-color', '#991b1b'),
+            '--platform-menu-hover-background:'.$this->menuColor($attributes, 'data-platform-menu-hover-background', '#fef2f2'),
+            '--platform-menu-submenu-background:'.$this->menuColor($attributes, 'data-platform-menu-submenu-background', '#ffffff'),
+            '--platform-menu-item-margin:'.$this->menuSizeList($attributes, 'data-platform-menu-item-margin', '0'),
+            '--platform-menu-item-padding:'.$this->menuSizeList($attributes, 'data-platform-menu-item-padding', '10px 14px'),
+            '--platform-menu-offcanvas-width:'.$this->menuSize($attributes, 'data-platform-menu-offcanvas-width', '320px'),
+        ]);
+
+        return trim(rtrim($baseStyle, ';').';'.implode(';', $declarations), ';');
+    }
+
+    private function menuColor(string $attributes, string $name, string $fallback): string
+    {
+        $value = trim((string) $this->attributeValue($attributes, $name));
+
+        return preg_match('/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $value) === 1 || $value === 'transparent'
+            ? $value
+            : $fallback;
+    }
+
+    private function menuSize(string $attributes, string $name, string $fallback): string
+    {
+        $value = trim((string) $this->attributeValue($attributes, $name));
+
+        return $this->validMenuSize($value) ? $value : $fallback;
+    }
+
+    private function menuSizeList(string $attributes, string $name, string $fallback): string
+    {
+        $parts = preg_split('/\s+/', trim((string) $this->attributeValue($attributes, $name))) ?: [];
+
+        return count($parts) >= 1 && count($parts) <= 4 && collect($parts)->every(fn (string $part): bool => $this->validMenuSize($part))
+            ? implode(' ', $parts)
+            : $fallback;
+    }
+
+    private function validMenuSize(string $value): bool
+    {
+        return preg_match('/^(0|-?[0-9]{1,4}(px|rem|em|%|vw|vh))$/', trim($value)) === 1;
     }
 
     /**
-     * @param array<string, mixed> $item
-     * @param array<int, array<string, string|null>> $linkTemplates
+     * @param  array<string, mixed>  $item
+     * @param  array<int, array<string, string|null>>  $linkTemplates
      */
     private function menuItemHtml(array $item, int $index = 0, array $linkTemplates = []): string
     {
@@ -654,7 +789,7 @@ CSS;
     }
 
     /**
-     * @param array<string, mixed> $item
+     * @param  array<string, mixed>  $item
      */
     private function menuItemHref(array $item): ?string
     {
@@ -712,7 +847,7 @@ CSS;
     }
 
     /**
-     * @param array<int, array<string, string|null>> $templates
+     * @param  array<int, array<string, string|null>>  $templates
      */
     private function linkAttributesForIndex(array $templates, int $index): string
     {
@@ -755,7 +890,7 @@ CSS;
     }
 
     /**
-     * @param array<int, string> $excludedNames
+     * @param  array<int, string>  $excludedNames
      */
     private function safeAttributes(string $attrs, array $excludedNames = []): string
     {

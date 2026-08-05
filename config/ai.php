@@ -3,7 +3,7 @@
 use App\Enums\AiIntent;
 
 return [
-    'gateway_base_url' => env('AI_GATEWAY_BASE_URL', 'http://10.10.20.10:8080'),
+    'gateway_base_url' => env('AI_GATEWAY_BASE_URL', 'http://127.0.0.1:8080'),
     'gateway_api_key' => env('AI_GATEWAY_API_KEY', ''),
     'default_timeout' => (int) env('AI_DEFAULT_TIMEOUT', 60),
     'image_timeout' => (int) env('AI_IMAGE_TIMEOUT', 300),

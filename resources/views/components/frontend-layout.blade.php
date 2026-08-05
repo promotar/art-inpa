@@ -118,10 +118,19 @@
     $dynamicFooters = collect();
     $dynamicLayoutCss = '';
 
+    $usesVvvebLayout = class_exists(\Modules\PageBuilder\ThemeCompositionService::class);
+
     try {
-        $dynamicHeaders = $contentRenderer->publishedLayoutSections('header');
-        $dynamicFooters = $contentRenderer->publishedLayoutSections('footer');
-        $dynamicLayoutCss = $contentRenderer->layoutCss();
+        if ($usesVvvebLayout) {
+            $vvvebLayout = app(\Modules\PageBuilder\ThemeCompositionService::class)->layoutViewData();
+            $dynamicHeaders = $vvvebLayout['dynamicHeaders'];
+            $dynamicFooters = $vvvebLayout['dynamicFooters'];
+            $dynamicLayoutCss = $vvvebLayout['dynamicLayoutCss'];
+        } else {
+            $dynamicHeaders = $contentRenderer->publishedLayoutSections('header');
+            $dynamicFooters = $contentRenderer->publishedLayoutSections('footer');
+            $dynamicLayoutCss = $contentRenderer->layoutCss();
+        }
     } catch (\Throwable $exception) {
         $dynamicHeaders = collect();
         $dynamicFooters = collect();
@@ -160,6 +169,10 @@
             <link rel="stylesheet" href="{{ $frontendStyleBundleUrl }}">
         @endif
         @include('platform.plugin-assets', ['scope' => 'frontend', 'kind' => 'styles'])
+        @if ($usesVvvebLayout)
+            <link rel="stylesheet" href="{{ url('/page-builder-assets/v3/demo/landing/css/style.bundle.css') }}">
+            <link rel="stylesheet" href="{{ url('/page-builder-assets/v3/demo/landing/css/custom.css') }}">
+        @endif
         @if ($dynamicLayoutCss !== '')
             <style data-platform-layout-css>{!! $dynamicLayoutCss !!}</style>
         @endif
@@ -175,7 +188,7 @@
                         {!! $dynamicHeader->rendered_html !!}
                     </div>
                 @endforeach
-            @else
+            @elseif (! $usesVvvebLayout)
                 <header class="border-b border-slate-200 bg-white">
                     <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
                         <a href="{{ route('front.home') }}" class="flex items-center text-lg font-bold tracking-tight text-slate-950">

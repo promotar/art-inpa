@@ -138,7 +138,14 @@ class PluginPackageValidatorTest extends TestCase
 
         foreach ($paths as $path) {
             $manifest = app(PluginPackageValidator::class)->validate($path);
-            $this->assertContains($manifest->slug, ['front-builder', 'page-builder']);
+            $sourceManifest = json_decode(
+                (string) File::get($path.'/module.json'),
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            $this->assertSame($sourceManifest['slug'], $manifest->slug);
         }
     }
 

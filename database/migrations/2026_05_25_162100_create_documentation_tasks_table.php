@@ -24,7 +24,7 @@ return new class extends Migration
             ['title' => 'تسجيل permissions و menus و hooks من ملفات البلجن', 'details' => 'قراءة permissions.php و menus.php و hooks.php وربطها بالنظام الأساسي.'],
             ['title' => 'إنشاء صفحة uninstall آمنة للبلجن', 'details' => 'uninstall يكون منفصل عن deactivate ولا يعمل إلا بتأكيد صريح.'],
             ['title' => 'إنشاء Demo Plugin للاختبار', 'details' => 'بلجن بسيط يحتوي module.json و ServiceProvider و route و view لاختبار دورة الحياة.'],
-            ['title' => 'تفعيل Reverse Proxy النهائي للدومين store.z4rank.com', 'details' => 'بعد ربط DNS، يوجه OPNsense/Caddy إلى 10.10.0.20:80.'],
+            ['title' => 'تفعيل Reverse Proxy النهائي للدومين', 'details' => 'بعد ربط DNS، يوجه Reverse Proxy إلى عنوان الخدمة المضبوط في بيئة التشغيل.'],
             ['title' => 'إضافة backup قبل install/update/uninstall', 'details' => 'نسخة قاعدة بيانات ونسخة مجلد البلجن قبل أي عملية حساسة.'],
             ['title' => 'تقييد صفحات الإدارة بصلاحيات فعلية', 'details' => 'استخدام middleware مثل permission:plugins.install و users.manage بدل auth فقط.'],
             ['title' => 'إضافة Activity Logs لكل عمليات الإدارة', 'details' => 'تسجيل من رفع بلجن، فعله، عطله، أضاف مستخدم، أو عدل صلاحيات.'],

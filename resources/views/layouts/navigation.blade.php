@@ -61,13 +61,13 @@
     if ($hasAdminAccess) {
         try {
             $storedAdminItems = app(\App\Platform\Core\Menus\MenuManager::class)->getAdminMenu($user);
-            $hasPlatformAdminMenu = \Illuminate\Support\Facades\Schema::hasTable('menus')
+            $hasRegisteredAdminMenus = \Illuminate\Support\Facades\Schema::hasTable('menus')
                 && \App\Platform\Core\Models\Menu::query()
-                    ->where('key', 'platform.admin')
                     ->where('location', 'admin')
+                    ->where('is_active', true)
                     ->exists();
 
-            if ($hasPlatformAdminMenu && $storedAdminItems !== []) {
+            if ($hasRegisteredAdminMenus && $storedAdminItems !== []) {
                 $mapStoredAdminItem = function (array $item) use ($t, &$mapStoredAdminItem): ?array {
                     $routeName = $item['route_name'] ?? null;
                     $url = $item['url'] ?? null;
@@ -125,39 +125,7 @@
         }
     }
 
-    if ($menuItems === []) {
-        if ($hasAdminAccess) {
-            $menuItems = [
-                [
-                    'label' => $t('Overview'),
-                    'href' => null,
-                    'active' => request()->routeIs('dashboard') || request()->routeIs('admin.documentation.*'),
-                    'icon' => 'O',
-                    'visible' => true,
-                    'type' => 'group',
-                    'children' => [
-                        [
-                            'label' => $t('Dashboard'),
-                            'href' => route('dashboard'),
-                            'active' => request()->routeIs('dashboard'),
-                            'icon' => 'D',
-                            'visible' => true,
-                            'type' => 'link',
-                            'children' => [],
-                        ],
-                        [
-                            'label' => $t('Documentation'),
-                            'href' => route('admin.documentation.index'),
-                            'active' => request()->routeIs('admin.documentation.*'),
-                            'icon' => 'O',
-                            'visible' => $routeAccess->allowsRouteName($user, 'admin.documentation.index'),
-                            'type' => 'link',
-                            'children' => [],
-                        ],
-                    ],
-                ],
-            ];
-        } else {
+    if ($menuItems === [] && ! $hasAdminAccess) {
             $menuItems = [
                 [
                     'label' => $t('Home'),
@@ -178,7 +146,6 @@
                     'children' => [],
                 ],
             ];
-        }
     }
 
     $activeAdminSection = collect($menuItems)->first(fn (array $item): bool =>
@@ -371,17 +338,6 @@
             @endforeach
         </div>
 
-        <div class="z4-admin-sidebar-footer">
-            <a href="{{ route('profile.edit') }}" class="z4-admin-link">
-                <span class="z4-admin-link-label">{{ $t('Profile') }}</span>
-            </a>
-            <form method="POST" action="{{ route('logout') }}" class="z4-admin-footer-form">
-                @csrf
-                <button type="submit" class="z4-admin-link z4-admin-footer-button">
-                    <span class="z4-admin-link-label">{{ $t('Log Out') }}</span>
-                </button>
-            </form>
-        </div>
     </aside>
 
     <div x-show="mobileOpen" x-cloak class="z4-mobile-overlay" @click="mobileOpen = false"></div>

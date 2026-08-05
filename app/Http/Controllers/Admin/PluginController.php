@@ -88,7 +88,7 @@ class PluginController extends Controller
             }
 
             File::ensureDirectoryExists(base_path('modules'));
-            File::moveDirectory($pluginRoot, $installedPath);
+            $this->relocateDirectory($pluginRoot, $installedPath);
             $movedInstallPath = $installedPath;
             $this->checkpointStep($request, 'plugin.upload.install', $slug, 'files_moved', [
                 'installed_path' => $installedPath,
@@ -453,18 +453,18 @@ class PluginController extends Controller
         }
 
         try {
-            File::moveDirectory($installedPath, $backupPath);
+            $this->relocateDirectory($installedPath, $backupPath);
             $this->checkpointStep($request, 'plugin.update', $manifest->slug, 'old_files_moved_to_backup', [
                 'backup_path' => $backupPath,
             ]);
 
-            File::moveDirectory($newPluginRoot, $installedPath);
+            $this->relocateDirectory($newPluginRoot, $installedPath);
             $newFilesMoved = true;
             $this->checkpointStep($request, 'plugin.update', $manifest->slug, 'new_files_moved_into_modules', [
                 'installed_path' => $installedPath,
             ]);
 
-            $plugin = $plugins->install($installedPath);
+            $plugin = $plugins->update($installedPath);
             $this->checkpointStep($request, 'plugin.update', $manifest->slug, 'plugin_manager_update_completed', [
                 'old_version' => $existing->version,
                 'new_version' => $plugin->version,
@@ -481,8 +481,14 @@ class PluginController extends Controller
                 File::deleteDirectory($installedPath);
             }
 
+            $restoreFailure = null;
+
             if (File::exists($backupPath) && ! File::exists($installedPath)) {
-                File::moveDirectory($backupPath, $installedPath);
+                try {
+                    $this->relocateDirectory($backupPath, $installedPath);
+                } catch (\Throwable $restoreException) {
+                    $restoreFailure = $restoreException;
+                }
             }
 
             if ($wasActive) {
@@ -493,7 +499,48 @@ class PluginController extends Controller
                 }
             }
 
+            if ($restoreFailure !== null) {
+                throw new RuntimeException(
+                    'Plugin update failed and its backup could not be restored: '.$restoreFailure->getMessage()
+                    .'. Original update error: '.$exception->getMessage(),
+                    previous: $exception,
+                );
+            }
+
             throw $exception;
+        }
+    }
+
+    private function relocateDirectory(string $source, string $destination): void
+    {
+        if (! File::isDirectory($source)) {
+            throw new RuntimeException("Source directory [{$source}] does not exist.");
+        }
+
+        if (File::exists($destination)) {
+            throw new RuntimeException("Destination directory [{$destination}] already exists.");
+        }
+
+        if (File::moveDirectory($source, $destination)) {
+            return;
+        }
+
+        // rename() cannot cross Docker bind mounts. Fall back to a verified
+        // copy-and-delete relocation when modules and storage are separate.
+        if (File::exists($destination)) {
+            File::deleteDirectory($destination);
+        }
+
+        if (! File::copyDirectory($source, $destination)) {
+            File::deleteDirectory($destination);
+
+            throw new RuntimeException("Directory [{$source}] could not be copied to [{$destination}].");
+        }
+
+        if (! File::deleteDirectory($source)) {
+            File::deleteDirectory($destination);
+
+            throw new RuntimeException("Directory [{$source}] was copied but could not be removed.");
         }
     }
 

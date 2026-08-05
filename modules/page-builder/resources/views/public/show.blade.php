@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-{{-- Public rendering is owned by the protected Page Builder plugin. --}}
+{{-- Public rendering is owned by the VvvebJs builder plugin. --}}
 @php
-    $pageBuilderRender = app(\Modules\PageBuilder\ThemeCompositionService::class);
-    $pageBuilderView = $pageBuilderRender->pageViewData($page, (bool) ($isPreview ?? false));
-    extract($pageBuilderView, EXTR_SKIP);
+    $vvvebRenderer = app(\Modules\PageBuilder\ThemeCompositionService::class);
+    $vvvebView = $vvvebRenderer->pageViewData($page, (bool) ($isPreview ?? false));
+    extract($vvvebView, EXTR_SKIP);
     $siteLanguage = ($platformSettings['general.site_language'] ?? 'ar') === 'en' ? 'en' : 'ar';
     $htmlDirection = $siteLanguage === 'ar' ? 'rtl' : 'ltr';
 @endphp
@@ -29,6 +29,8 @@
             <link rel="icon" href="data:,">
         @endif
         @include('platform.plugin-assets', ['scope' => 'frontend', 'kind' => 'styles'])
+        <link rel="stylesheet" href="{{ url('/page-builder-assets/demo/landing/css/style.bundle.css') }}">
+        <link rel="stylesheet" href="{{ url('/page-builder-assets/demo/landing/css/custom.css') }}">
         <style>
             html,
             body {
@@ -96,7 +98,7 @@
                 cursor: pointer;
             }
 
-            {!! $page->css ?? '' !!}
+            {!! $pageCss !!}
             {!! $dynamicLayoutCss !!}
 
             /* Latest is a direct News link on phone layouts; the mega menu is desktop-only. */
